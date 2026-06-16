@@ -177,49 +177,49 @@ export function QueuePage() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="shrink-0 bg-surface border-b border-border px-6 py-3 space-y-2">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-          <input
-            type="text"
-            placeholder="Search by project or author name..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full py-2.5 pl-10 pr-3 bg-bg border border-border rounded-lg text-text text-sm outline-none transition-all placeholder:text-muted focus:border-accent"
-          />
-        </div>
-
-        <div className="flex flex-wrap gap-2 items-center">
-          {projectTypes.map((type) => (
-            <button
-              key={type}
-              onClick={() => toggleType(type)}
-              className={`
-                py-1.5 px-3.5 rounded-[20px] border text-[12px] font-bold transition-all
-                ${selectedTypes.has(type)
-                  ? 'bg-accent-subtle border-accent text-accent'
-                  : 'border-border bg-surface2 text-subtext hover:border-accent hover:text-text'
-                }
-              `}
-            >
-              {formatTypeName(type)}
-            </button>
-          ))}
-          {selectedTypes.size > 0 && (
-            <button
-              onClick={() => setSelectedTypes(new Set())}
-              className="py-1.5 px-3.5 rounded-[20px] border border-border bg-transparent text-subtext text-[12px] font-bold underline hover:text-text"
-            >
-              Clear filters
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
         <QueueStatsPanel stats={data.stats} leaderboards={data.leaderboards} />
+
+        {/* Search + filters */}
+        <div className="space-y-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+            <input
+              type="text"
+              placeholder="Search by project or author name..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full py-2.5 pl-10 pr-3 bg-surface border border-border rounded-lg text-text text-sm outline-none transition-all placeholder:text-muted focus:border-accent"
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-2 items-center">
+            {projectTypes.map((type) => (
+              <button
+                key={type}
+                onClick={() => toggleType(type)}
+                className={`
+                  py-1.5 px-3.5 rounded-[20px] border text-[12px] font-bold transition-all
+                  ${selectedTypes.has(type)
+                    ? 'bg-accent-subtle border-accent text-accent'
+                    : 'border-border bg-surface2 text-subtext hover:border-accent hover:text-text'
+                  }
+                `}
+              >
+                {formatTypeName(type)}
+              </button>
+            ))}
+            {selectedTypes.size > 0 && (
+              <button
+                onClick={() => setSelectedTypes(new Set())}
+                className="py-1.5 px-3.5 rounded-[20px] border border-border bg-transparent text-subtext text-[12px] font-bold underline hover:text-text"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+        </div>
 
         <section>
           <div className="flex items-center justify-between mb-3">
