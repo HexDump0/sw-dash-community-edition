@@ -1,0 +1,90 @@
+{
+  "id": 443,
+  "projectTitle": "Jarned V1",
+  "status": "pending",
+  "momentum": {
+    "count": 7,
+    "label": "reviewed today. Keep the momentum going."
+  },
+  "description": "A small hackpad designed to save time on the pointless things.",
+  "aiDeclaration": "Used Claude for troubleshooting, answering queries that a google and a slack message couldn't fix and for checking over code I wrote myself.",
+  "links": {
+    "repo": "https://github.com/Jarned-rs/Jarned-V1",
+    "demo": "https://github.com/Jarned-rs/Jarned-V1/releases/tag/Jarned",
+    "readme": "https://raw.githubusercontent.com/Jarned-rs/Jarned-V1/main/README.md",
+    "project": "/projects/5480"
+  },
+  "submissionMeta": {
+    "submitter": "Jarned",
+    "submitted": "7 days ago",
+    "reviewer": "Floppy",
+    "updated_project": "No"
+  },
+  "returnedAlert": null,
+  "claim": {
+    "heldByMe": true,
+    "expiresAt": "2026-06-16T15:10:53Z",
+    "action": "/admin/certification/ship/443",
+    "method": "patch",
+    "authenticityToken": "m2jQjDUxyMjZTl73zk0MGPAGLTCtHIWMuc0s6H3BvUBV7fkRJZ-JuWyfWxykXtnu3-oH4gqZKpWjQSpXl9GACA"
+  },
+  "submitterHistory": {
+    "summary": "2 reviews across 1 project\n                \u00b7 0 approved\n                \u00b7 1 returned",
+    "recent": [
+      {
+        "id": 443,
+        "status": "pending",
+        "date": "\u2014",
+        "title": "Jarned V1",
+        "feedback": "",
+        "isCurrent": true
+      },
+      {
+        "id": 318,
+        "status": "returned",
+        "date": "Jun 08",
+        "title": "Jarned V1\n                        \u00b7 by Amu",
+        "feedback": "Hi there , really cool maropad , but rn the demo is of the pcb design , which is not a appropriate demo , a good demo would be a link to github release section of your repo with your pcb and cad files uploaded under the assets section :)",
+        "isCurrent": false
+      }
+    ]
+  },
+  "owner": {
+    "displayName": "Jarned",
+    "slackUserId": "U0ABCDEF",
+    "age": 17,
+    "country": "US",
+    "avatarUrl": "https://ui-avatars.com/api/?name=Jarned&background=343651&color=F4EBB9&size=128"
+  },
+  "project": {
+    "projectId": 5480,
+    "title": "Jarned V1",
+    "description": "A small hackpad designed to save time on the pointless things.",
+    "projectType": "Hardware",
+    "screenshotUrl": "https://placehold.co/800x450/343651/F4EBB9?text=Project+Screenshot",
+    "playableUrl": "https://github.com/Jarned-rs/Jarned-V1/releases/tag/Jarned",
+    "repoUrl": "https://github.com/Jarned-rs/Jarned-V1",
+    "readmeUrl": "https://raw.githubusercontent.com/Jarned-rs/Jarned-V1/main/README.md"
+  },
+  "hackatimeHours": 12.5,
+  "joeFraudPassed": null,
+  "joeTrustScore": null,
+  "timeline": [
+    {
+      "id": 443,
+      "title": "Jarned V1",
+      "status": "pending",
+      "date": "2026-06-14T15:20:40.523389+00:00",
+      "reviewerName": "\u2014",
+      "feedback": ""
+    },
+    {
+      "id": 318,
+      "title": "Jarned V1\n                        \u00b7 by Amu",
+      "status": "returned",
+      "date": "2026-06-09T15:20:40.523389+00:00",
+      "reviewerName": "Amu",
+      "feedback": "Hi there , really cool maropad , but rn the demo is of the pcb design , which is not a appropriate demo , a good demo would be a link to github release section of your repo with your pcb and cad files uploaded under the assets section :)"
+    }
+  ]
+}

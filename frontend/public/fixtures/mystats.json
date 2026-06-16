@@ -1,0 +1,164 @@
+{
+  "stats": {
+    "total": 19,
+    "approved": 7,
+    "returned": 12,
+    "approvalRate": 37,
+    "unclaimed": 19,
+    "pendingPayout": null
+  },
+  "history": [
+    {
+      "id": 1051,
+      "title": "Portfolio",
+      "status": "returned",
+      "amount": 1,
+      "isPayout": false,
+      "date": "Jun 16, 2026"
+    },
+    {
+      "id": 1050,
+      "title": "LinAlg Visualizer",
+      "status": "returned",
+      "amount": 1,
+      "isPayout": false,
+      "date": "Jun 16, 2026"
+    },
+    {
+      "id": 1039,
+      "title": "Simple QR Generator",
+      "status": "approved",
+      "amount": 1,
+      "isPayout": false,
+      "date": "Jun 16, 2026"
+    },
+    {
+      "id": 1037,
+      "title": "Portfolio",
+      "status": "returned",
+      "amount": 1,
+      "isPayout": false,
+      "date": "Jun 16, 2026"
+    },
+    {
+      "id": 1032,
+      "title": "Custom Stardance API",
+      "status": "approved",
+      "amount": 1,
+      "isPayout": false,
+      "date": "Jun 16, 2026"
+    },
+    {
+      "id": 1043,
+      "title": "RetrOS",
+      "status": "approved",
+      "amount": 1,
+      "isPayout": false,
+      "date": "Jun 16, 2026"
+    },
+    {
+      "id": 1049,
+      "title": "CosmoOS",
+      "status": "returned",
+      "amount": 1,
+      "isPayout": false,
+      "date": "Jun 16, 2026"
+    },
+    {
+      "id": 787,
+      "title": "New_UI_addon_Veyra",
+      "status": "returned",
+      "amount": 1,
+      "isPayout": false,
+      "date": "Jun 15, 2026"
+    },
+    {
+      "id": 809,
+      "title": "NASA CONTROL SIM",
+      "status": "approved",
+      "amount": 1,
+      "isPayout": false,
+      "date": "Jun 15, 2026"
+    },
+    {
+      "id": 834,
+      "title": "Ephemeris",
+      "status": "returned",
+      "amount": 1,
+      "isPayout": false,
+      "date": "Jun 15, 2026"
+    },
+    {
+      "id": 637,
+      "title": "Nitrogen",
+      "status": "returned",
+      "amount": 1,
+      "isPayout": false,
+      "date": "Jun 14, 2026"
+    },
+    {
+      "id": 724,
+      "title": "Fuddi AI",
+      "status": "approved",
+      "amount": 1,
+      "isPayout": false,
+      "date": "Jun 14, 2026"
+    },
+    {
+      "id": 717,
+      "title": "Frictionless",
+      "status": "returned",
+      "amount": 1,
+      "isPayout": false,
+      "date": "Jun 14, 2026"
+    },
+    {
+      "id": 774,
+      "title": "SpotOn",
+      "status": "approved",
+      "amount": 1,
+      "isPayout": false,
+      "date": "Jun 14, 2026"
+    },
+    {
+      "id": 772,
+      "title": "ChickenBot Slack Bot",
+      "status": "returned",
+      "amount": 1,
+      "isPayout": false,
+      "date": "Jun 14, 2026"
+    },
+    {
+      "id": 449,
+      "title": "CLADES",
+      "status": "approved",
+      "amount": 1,
+      "isPayout": false,
+      "date": "Jun 14, 2026"
+    },
+    {
+      "id": 769,
+      "title": "Hamstersarus OS",
+      "status": "returned",
+      "amount": 1,
+      "isPayout": false,
+      "date": "Jun 14, 2026"
+    },
+    {
+      "id": 567,
+      "title": "InControl v2",
+      "status": "returned",
+      "amount": 1,
+      "isPayout": false,
+      "date": "Jun 11, 2026"
+    },
+    {
+      "id": 572,
+      "title": "VoidBoard",
+      "status": "returned",
+      "amount": 1,
+      "isPayout": false,
+      "date": "Jun 11, 2026"
+    }
+  ]
+}

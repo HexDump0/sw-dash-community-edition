@@ -1,0 +1,32 @@
+{
+  "repoUrl": "https://github.com/Jarned-rs/Jarned-V1",
+  "fullName": "Jarned-rs/Jarned-V1",
+  "stars": 14,
+  "forks": 3,
+  "openIssues": 2,
+  "pullRequests": 1,
+  "language": "Rust",
+  "license": "MIT",
+  "createdAt": "2026-05-20T10:00:00Z",
+  "pushedAt": "2026-06-15T08:30:00Z",
+  "commits": [
+    {
+      "sha": "a1b2c3d",
+      "message": "Initial commit: basic PCB layout",
+      "author": "Jarned",
+      "date": "2026-05-20T10:00:00Z"
+    },
+    {
+      "sha": "e4f5g6h",
+      "message": "Add firmware and key mapping",
+      "author": "Jarned",
+      "date": "2026-06-01T14:22:00Z"
+    },
+    {
+      "sha": "i7j8k9l",
+      "message": "Fix debounce and LED issues",
+      "author": "Jarned",
+      "date": "2026-06-14T19:45:00Z"
+    }
+  ]
+}

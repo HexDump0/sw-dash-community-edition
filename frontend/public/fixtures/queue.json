@@ -1,0 +1,552 @@
+{
+  "stats": {
+    "net_flow": -4,
+    "net_positive": false,
+    "pending": 129,
+    "oldest_waiting_text": "7 days",
+    "oldest_waiting_id": 443,
+    "approval_rate": 39,
+    "decisions_this_week": 165,
+    "overdue_pending": 32,
+    "approved": 363,
+    "returned": 565,
+    "decided": 928
+  },
+  "leaderboards": {
+    "daily": [
+      {
+        "position": 1,
+        "name": "Carlson",
+        "count": 47
+      },
+      {
+        "position": 2,
+        "name": "frog",
+        "count": 17
+      },
+      {
+        "position": 3,
+        "name": "Arjav",
+        "count": 15
+      },
+      {
+        "position": 4,
+        "name": "obay",
+        "count": 9
+      },
+      {
+        "position": 5,
+        "name": "Floppy",
+        "count": 7
+      },
+      {
+        "position": 6,
+        "name": "Amu",
+        "count": 4
+      },
+      {
+        "position": 7,
+        "name": "swn",
+        "count": 4
+      }
+    ],
+    "weekly": [
+      {
+        "position": 1,
+        "name": "Carlson",
+        "count": 69
+      },
+      {
+        "position": 2,
+        "name": "Arjav",
+        "count": 34
+      },
+      {
+        "position": 3,
+        "name": "Amu",
+        "count": 17
+      },
+      {
+        "position": 4,
+        "name": "frog",
+        "count": 17
+      },
+      {
+        "position": 5,
+        "name": "Floppy",
+        "count": 10
+      },
+      {
+        "position": 6,
+        "name": "obay",
+        "count": 9
+      },
+      {
+        "position": 7,
+        "name": "PianoMan0",
+        "count": 5
+      },
+      {
+        "position": 8,
+        "name": "swn",
+        "count": 4
+      }
+    ],
+    "alltime": [
+      {
+        "position": 1,
+        "name": "Carlson",
+        "count": 271
+      },
+      {
+        "position": 2,
+        "name": "Amu",
+        "count": 143
+      },
+      {
+        "position": 3,
+        "name": "frog",
+        "count": 105
+      },
+      {
+        "position": 4,
+        "name": "Arjav",
+        "count": 69
+      },
+      {
+        "position": 5,
+        "name": "YouSafe",
+        "count": 58
+      },
+      {
+        "position": 6,
+        "name": "swn",
+        "count": 46
+      },
+      {
+        "position": 7,
+        "name": "ee",
+        "count": 43
+      },
+      {
+        "position": 8,
+        "name": "obay",
+        "count": 39
+      },
+      {
+        "position": 9,
+        "name": "lukas",
+        "count": 32
+      },
+      {
+        "position": 10,
+        "name": "coolcream",
+        "count": 29
+      }
+    ]
+  },
+  "ships": [
+    {
+      "id": 443,
+      "projectTitle": "Jarned V1",
+      "projectShipIdLabel": "#443",
+      "ownerDisplayName": "Jarned",
+      "ageText": "by Jarned\u00b77 days old\u00b7LockedFloppy",
+      "status": "pending",
+      "hasBadReview": false,
+      "claimState": "locked",
+      "claimReviewerDisplayName": "Floppy",
+      "claimExpiresAt": "2026-06-16T15:10:53Z",
+      "isOwnProject": false,
+      "projectType": "Hardware",
+      "screenshotUrl": null,
+      "waitingHours": 168
+    },
+    {
+      "id": 448,
+      "projectTitle": "codex-connect",
+      "projectShipIdLabel": "#448",
+      "ownerDisplayName": "nightowl",
+      "ageText": "by nightowl\u00b77 days old\u00b7Open",
+      "status": "pending",
+      "hasBadReview": false,
+      "claimState": "open",
+      "claimReviewerDisplayName": "",
+      "claimExpiresAt": null,
+      "isOwnProject": false,
+      "projectType": "Other",
+      "screenshotUrl": null,
+      "waitingHours": 168
+    },
+    {
+      "id": 452,
+      "projectTitle": "Lumi",
+      "projectShipIdLabel": "#452",
+      "ownerDisplayName": "Atharv",
+      "ageText": "by Atharv\u00b77 days old\u00b7Open",
+      "status": "pending",
+      "hasBadReview": false,
+      "claimState": "open",
+      "claimReviewerDisplayName": "",
+      "claimExpiresAt": null,
+      "isOwnProject": false,
+      "projectType": "Desktop App (Windows)",
+      "screenshotUrl": null,
+      "waitingHours": 168
+    },
+    {
+      "id": 471,
+      "projectTitle": "Kazi's Hackpad (3x3)",
+      "projectShipIdLabel": "#471",
+      "ownerDisplayName": "kaziofmeridian",
+      "ageText": "by kaziofmeridian\u00b76 days old\u00b7Open",
+      "status": "pending",
+      "hasBadReview": false,
+      "claimState": "open",
+      "claimReviewerDisplayName": "",
+      "claimExpiresAt": null,
+      "isOwnProject": false,
+      "projectType": "Hardware",
+      "screenshotUrl": null,
+      "waitingHours": 168
+    },
+    {
+      "id": 498,
+      "projectTitle": "EpicMacroPad",
+      "projectShipIdLabel": "#498",
+      "ownerDisplayName": "Epicninja3",
+      "ageText": "by Epicninja3\u00b76 days old\u00b7Open",
+      "status": "pending",
+      "hasBadReview": false,
+      "claimState": "open",
+      "claimReviewerDisplayName": "",
+      "claimExpiresAt": null,
+      "isOwnProject": false,
+      "projectType": "Hardware",
+      "screenshotUrl": null,
+      "waitingHours": 168
+    },
+    {
+      "id": 516,
+      "projectTitle": "Multi Tenant Business Management Backend",
+      "projectShipIdLabel": "#516",
+      "ownerDisplayName": "NHero",
+      "ageText": "by NHero\u00b76 days old\u00b7Open",
+      "status": "pending",
+      "hasBadReview": false,
+      "claimState": "open",
+      "claimReviewerDisplayName": "",
+      "claimExpiresAt": null,
+      "isOwnProject": false,
+      "projectType": "Web App",
+      "screenshotUrl": null,
+      "waitingHours": 168
+    },
+    {
+      "id": 524,
+      "projectTitle": "My awesome macropad!",
+      "projectShipIdLabel": "#524",
+      "ownerDisplayName": "Manenti",
+      "ageText": "by Manenti\u00b76 days old\u00b7Open",
+      "status": "pending",
+      "hasBadReview": false,
+      "claimState": "open",
+      "claimReviewerDisplayName": "",
+      "claimExpiresAt": null,
+      "isOwnProject": false,
+      "projectType": "Other",
+      "screenshotUrl": null,
+      "waitingHours": 168
+    },
+    {
+      "id": 535,
+      "projectTitle": "KG's HACKPAD",
+      "projectShipIdLabel": "#535",
+      "ownerDisplayName": "KrishangGupta",
+      "ageText": "by KrishangGupta\u00b76 days old\u00b7Open",
+      "status": "pending",
+      "hasBadReview": false,
+      "claimState": "open",
+      "claimReviewerDisplayName": "",
+      "claimExpiresAt": null,
+      "isOwnProject": false,
+      "projectType": "Other",
+      "screenshotUrl": null,
+      "waitingHours": 168
+    },
+    {
+      "id": 541,
+      "projectTitle": "BigSaltyKeypad 5ROL",
+      "projectShipIdLabel": "#541",
+      "ownerDisplayName": "BigSaltyBeans",
+      "ageText": "by BigSaltyBeans\u00b76 days old\u00b7Open",
+      "status": "pending",
+      "hasBadReview": false,
+      "claimState": "open",
+      "claimReviewerDisplayName": "",
+      "claimExpiresAt": null,
+      "isOwnProject": false,
+      "projectType": "Hardware",
+      "screenshotUrl": null,
+      "waitingHours": 168
+    },
+    {
+      "id": 545,
+      "projectTitle": "My awesome macropad!",
+      "projectShipIdLabel": "#545",
+      "ownerDisplayName": "Rabii",
+      "ageText": "by Rabii\u00b76 days old\u00b7Open",
+      "status": "pending",
+      "hasBadReview": false,
+      "claimState": "open",
+      "claimReviewerDisplayName": "",
+      "claimExpiresAt": null,
+      "isOwnProject": false,
+      "projectType": "Hardware",
+      "screenshotUrl": null,
+      "waitingHours": 168
+    },
+    {
+      "id": 550,
+      "projectTitle": "My awesome macropad!",
+      "projectShipIdLabel": "#550",
+      "ownerDisplayName": "anujkishan918",
+      "ageText": "by anujkishan918\u00b75 days old\u00b7Open",
+      "status": "pending",
+      "hasBadReview": false,
+      "claimState": "open",
+      "claimReviewerDisplayName": "",
+      "claimExpiresAt": null,
+      "isOwnProject": false,
+      "projectType": "Hardware",
+      "screenshotUrl": null,
+      "waitingHours": 168
+    },
+    {
+      "id": 555,
+      "projectTitle": "3d game engine",
+      "projectShipIdLabel": "#555",
+      "ownerDisplayName": "rajaryan1492007",
+      "ageText": "by rajaryan1492007\u00b75 days old\u00b7Open",
+      "status": "pending",
+      "hasBadReview": false,
+      "claimState": "open",
+      "claimReviewerDisplayName": "",
+      "claimExpiresAt": null,
+      "isOwnProject": false,
+      "projectType": "Other",
+      "screenshotUrl": null,
+      "waitingHours": 168
+    },
+    {
+      "id": 557,
+      "projectTitle": "WireSend",
+      "projectShipIdLabel": "#557",
+      "ownerDisplayName": "sudu",
+      "ageText": "by sudu\u00b75 days old\u00b7Open",
+      "status": "pending",
+      "hasBadReview": false,
+      "claimState": "open",
+      "claimReviewerDisplayName": "",
+      "claimExpiresAt": null,
+      "isOwnProject": false,
+      "projectType": "CLI",
+      "screenshotUrl": null,
+      "waitingHours": 168
+    },
+    {
+      "id": 561,
+      "projectTitle": "Auto Updater",
+      "projectShipIdLabel": "#561",
+      "ownerDisplayName": "Afaeid",
+      "ageText": "by Afaeid\u00b75 days old\u00b7Open",
+      "status": "pending",
+      "hasBadReview": false,
+      "claimState": "open",
+      "claimReviewerDisplayName": "",
+      "claimExpiresAt": null,
+      "isOwnProject": false,
+      "projectType": "CLI",
+      "screenshotUrl": null,
+      "waitingHours": 168
+    },
+    {
+      "id": 568,
+      "projectTitle": "Anything AI",
+      "projectShipIdLabel": "#568",
+      "ownerDisplayName": "THEbluefirestudios",
+      "ageText": "by THEbluefirestudios\u00b75 days old\u00b7Open",
+      "status": "pending",
+      "hasBadReview": false,
+      "claimState": "open",
+      "claimReviewerDisplayName": "",
+      "claimExpiresAt": null,
+      "isOwnProject": false,
+      "projectType": "Desktop App (Windows)",
+      "screenshotUrl": null,
+      "waitingHours": 168
+    },
+    {
+      "id": 577,
+      "projectTitle": "VoidBoard",
+      "projectShipIdLabel": "#577",
+      "ownerDisplayName": "Mutahhar",
+      "ageText": "by Mutahhar\u00b75 days old\u00b7Open",
+      "status": "pending",
+      "hasBadReview": false,
+      "claimState": "open",
+      "claimReviewerDisplayName": "",
+      "claimExpiresAt": null,
+      "isOwnProject": false,
+      "projectType": "Hardware",
+      "screenshotUrl": null,
+      "waitingHours": 168
+    },
+    {
+      "id": 582,
+      "projectTitle": "Homeserver Dashboard",
+      "projectShipIdLabel": "#582",
+      "ownerDisplayName": "timon",
+      "ageText": "by timon\u00b75 days old\u00b7Open",
+      "status": "pending",
+      "hasBadReview": false,
+      "claimState": "open",
+      "claimReviewerDisplayName": "",
+      "claimExpiresAt": null,
+      "isOwnProject": false,
+      "projectType": "Web App",
+      "screenshotUrl": null,
+      "waitingHours": 168
+    },
+    {
+      "id": 584,
+      "projectTitle": "Studbudie",
+      "projectShipIdLabel": "#584",
+      "ownerDisplayName": "swyaeta",
+      "ageText": "by swyaeta\u00b75 days old\u00b7Open",
+      "status": "pending",
+      "hasBadReview": false,
+      "claimState": "open",
+      "claimReviewerDisplayName": "",
+      "claimExpiresAt": null,
+      "isOwnProject": false,
+      "projectType": "Chat Bot",
+      "screenshotUrl": null,
+      "waitingHours": 168
+    },
+    {
+      "id": 589,
+      "projectTitle": "Create: Just for Fun",
+      "projectShipIdLabel": "#589",
+      "ownerDisplayName": "janekmusin",
+      "ageText": "by janekmusin\u00b75 days old\u00b7Open",
+      "status": "pending",
+      "hasBadReview": false,
+      "claimState": "open",
+      "claimReviewerDisplayName": "",
+      "claimExpiresAt": null,
+      "isOwnProject": false,
+      "projectType": "Minecraft Mods",
+      "screenshotUrl": null,
+      "waitingHours": 168
+    },
+    {
+      "id": 592,
+      "projectTitle": "My awesome Slashpad!",
+      "projectShipIdLabel": "#592",
+      "ownerDisplayName": "alessandro_09",
+      "ageText": "by alessandro_09\u00b75 days old\u00b7Open",
+      "status": "pending",
+      "hasBadReview": false,
+      "claimState": "open",
+      "claimReviewerDisplayName": "",
+      "claimExpiresAt": null,
+      "isOwnProject": false,
+      "projectType": "Hardware",
+      "screenshotUrl": null,
+      "waitingHours": 168
+    },
+    {
+      "id": 604,
+      "projectTitle": "Macropad",
+      "projectShipIdLabel": "#604",
+      "ownerDisplayName": "zsm1",
+      "ageText": "by zsm1\u00b75 days old\u00b7Open",
+      "status": "pending",
+      "hasBadReview": false,
+      "claimState": "open",
+      "claimReviewerDisplayName": "",
+      "claimExpiresAt": null,
+      "isOwnProject": false,
+      "projectType": "Hardware",
+      "screenshotUrl": null,
+      "waitingHours": 168
+    },
+    {
+      "id": 626,
+      "projectTitle": "Macropad",
+      "projectShipIdLabel": "#626",
+      "ownerDisplayName": "Dishman",
+      "ageText": "by Dishman\u00b75 days old\u00b7Open",
+      "status": "pending",
+      "hasBadReview": false,
+      "claimState": "open",
+      "claimReviewerDisplayName": "",
+      "claimExpiresAt": null,
+      "isOwnProject": false,
+      "projectType": "Hardware",
+      "screenshotUrl": null,
+      "waitingHours": 168
+    },
+    {
+      "id": 629,
+      "projectTitle": "PixelSwerve",
+      "projectShipIdLabel": "#629",
+      "ownerDisplayName": "pxverkso",
+      "ageText": "by pxverkso\u00b74 days old\u00b7Open",
+      "status": "pending",
+      "hasBadReview": false,
+      "claimState": "open",
+      "claimReviewerDisplayName": "",
+      "claimExpiresAt": null,
+      "isOwnProject": false,
+      "projectType": "Hardware",
+      "screenshotUrl": null,
+      "waitingHours": 168
+    },
+    {
+      "id": 631,
+      "projectTitle": "Vencord Autoinstall",
+      "projectShipIdLabel": "#631",
+      "ownerDisplayName": "snows_alt",
+      "ageText": "by snows_alt\u00b74 days old\u00b7Open",
+      "status": "pending",
+      "hasBadReview": false,
+      "claimState": "open",
+      "claimReviewerDisplayName": "",
+      "claimExpiresAt": null,
+      "isOwnProject": false,
+      "projectType": "Desktop App (Windows)",
+      "screenshotUrl": null,
+      "waitingHours": 168
+    },
+    {
+      "id": 642,
+      "projectTitle": "Plutopad",
+      "projectShipIdLabel": "#642",
+      "ownerDisplayName": "Eli_Mendez",
+      "ageText": "by Eli_Mendez\u00b74 days old\u00b7Open",
+      "status": "pending",
+      "hasBadReview": false,
+      "claimState": "open",
+      "claimReviewerDisplayName": "",
+      "claimExpiresAt": null,
+      "isOwnProject": false,
+      "projectType": "Hardware",
+      "screenshotUrl": null,
+      "waitingHours": 168
+    }
+  ],
+  "status": "pending",
+  "sort": "oldest"
+}
