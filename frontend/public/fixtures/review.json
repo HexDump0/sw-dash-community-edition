@@ -52,9 +52,7 @@
   "owner": {
     "displayName": "Jarned",
     "slackUserId": "U0ABCDEF",
-    "age": 17,
-    "country": "US",
-    "avatarUrl": "https://ui-avatars.com/api/?name=Jarned&background=343651&color=F4EBB9&size=128"
+    "avatarUrl": null
   },
   "project": {
     "projectId": 5480,
@@ -74,7 +72,7 @@
       "id": 443,
       "title": "Jarned V1",
       "status": "pending",
-      "date": "2026-06-14T15:20:40.523389+00:00",
+      "date": "2026-06-14T16:09:55.011885+00:00",
       "reviewerName": "\u2014",
       "feedback": ""
     },
@@ -82,7 +80,7 @@
       "id": 318,
       "title": "Jarned V1\n                        \u00b7 by Amu",
       "status": "returned",
-      "date": "2026-06-09T15:20:40.523389+00:00",
+      "date": "2026-06-09T16:09:55.011885+00:00",
       "reviewerName": "Amu",
       "feedback": "Hi there , really cool maropad , but rn the demo is of the pcb design , which is not a appropriate demo , a good demo would be a link to github release section of your repo with your pcb and cad files uploaded under the assets section :)"
     }

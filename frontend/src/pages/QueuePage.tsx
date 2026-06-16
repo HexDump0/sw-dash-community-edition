@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import type { QueueData, QueueShip } from '../types';
 import { waitingFor, formatTypeName, useNow } from '../lib/utils';
+import { QueueStatsPanel } from '../components/queue/QueueStatsPanel';
 
 const sortOptions = [
   { id: 'longest-wait', label: 'Longest wait' },
@@ -168,13 +169,6 @@ export function QueuePage() {
           Shipwright <span className="text-text font-normal text-[13px] ml-2">Review Queue</span>
         </div>
         <div className="flex items-center gap-3">
-          <p className="text-[13px] text-subtext hidden sm:block">{filteredShips.length} of {data.ships.length} pending</p>
-          <Link
-            to="/stats"
-            className="py-1.5 px-3.5 rounded-md border border-border bg-surface2 text-subtext text-[12px] font-bold hover:border-accent hover:text-accent transition-all"
-          >
-            Stats
-          </Link>
           <button className="py-1.5 px-3.5 rounded-md border border-border bg-surface2 text-subtext text-[12px] font-bold hover:border-accent hover:text-accent transition-all">
             <RefreshCw className="w-3.5 h-3.5 inline mr-1" />
             Refresh
@@ -183,8 +177,11 @@ export function QueuePage() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="shrink-0 bg-surface border-b border-border px-6 py-4 space-y-3">
+      {/* Stats + Filters */}
+      <div className="shrink-0 bg-surface border-b border-border px-6 py-4 space-y-4">
+        <QueueStatsPanel stats={data.stats} leaderboards={data.leaderboards} />
+
+        <div className="space-y-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
           <input
@@ -220,6 +217,7 @@ export function QueuePage() {
               Clear filters
             </button>
           )}
+        </div>
         </div>
       </div>
 

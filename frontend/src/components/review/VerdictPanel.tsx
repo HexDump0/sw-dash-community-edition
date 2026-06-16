@@ -41,18 +41,18 @@ export function VerdictPanel({ review, onSubmitted }: VerdictPanelProps) {
 
   return (
     <div className="p-5">
+                <button className="action-btn action-btn--small action-btn--destructive w-full mb-5">
+            <Unlock className="w-3.5 h-3.5" />
+            Unclaim
+          </button>
       {review.claim.expiresAt && (
         <div className="flex items-center justify-between p-3 mb-5 rounded-lg bg-green-subtle border border-green/30">
           <span className="flex items-center gap-2 text-[13px] font-bold text-green">
             <Clock className="w-4 h-4" />
             Claim active
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col items-end gap-1">
             <ClaimCountdown expiresAt={review.claim.expiresAt} />
-            <button className="action-btn action-btn--small action-btn--destructive">
-              <Unlock className="w-3.5 h-3.5" />
-              Unclaim
-            </button>
           </div>
         </div>
       )}

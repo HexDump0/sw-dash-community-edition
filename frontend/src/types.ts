@@ -27,6 +27,8 @@ export interface QueueStats {
   approved: number;
   returned: number;
   decided: number;
+  decisions_today?: number;
+  new_today?: number;
 }
 
 export interface LeaderboardRow {

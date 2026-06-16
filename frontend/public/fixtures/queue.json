@@ -10,7 +10,9 @@
     "overdue_pending": 32,
     "approved": 363,
     "returned": 565,
-    "decided": 928
+    "decided": 928,
+    "decisions_today": 100,
+    "new_today": 104
   },
   "leaderboards": {
     "daily": [
