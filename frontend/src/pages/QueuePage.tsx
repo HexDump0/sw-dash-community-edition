@@ -2,17 +2,19 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  LayoutGrid,
-  List,
   Search,
   Clock,
   RefreshCw,
   Lock,
   AlertTriangle,
   ArrowRight,
+  List,
+  LayoutGrid,
+  Table as TableIcon,
+  User,
 } from 'lucide-react';
 import type { QueueData, QueueShip } from '../types';
-import { waitingFor, formatTypeName, timeAgo } from '../lib/utils';
+import { waitingFor, formatTypeName, useNow } from '../lib/utils';
 
 const sortOptions = [
   { id: 'longest-wait', label: 'Longest wait' },
@@ -21,33 +23,78 @@ const sortOptions = [
   { id: 'title', label: 'Title' },
 ];
 
-// Mock past reviews for demo
-const myPastReviews = [
-  { id: 101, projectTitle: 'Portfolio', userName: 'Alex', status: 'returned', reviewedAt: '2026-06-16T10:00:00Z', projectType: 'web_playable' },
-  { id: 102, projectTitle: 'Todo CLI', userName: 'Sam', status: 'approved', reviewedAt: '2026-06-15T14:00:00Z', projectType: 'cross_platform_playable' },
-];
+const SORT_KEY = 'stardance.queueSort';
+const VIEW_KEY = 'stardance.queueViewMode';
 
-const allPastReviews = [
-  { id: 201, projectTitle: 'Weather Bot', userName: 'Jordan', reviewerName: 'frog', status: 'approved', reviewedAt: '2026-06-16T08:00:00Z', projectType: 'web_playable' },
-  { id: 202, projectTitle: 'LED Matrix', userName: 'Casey', reviewerName: 'Carlson', status: 'approved', reviewedAt: '2026-06-15T22:00:00Z', projectType: 'hardware' },
-];
+type ViewMode = 'list' | 'grid' | 'table';
+
+interface Reviewer {
+  name: string;
+  slackUserId: string;
+}
+
+function cachetAvatarUrl(slackUserId: string | null): string | null {
+  if (!slackUserId) return null;
+  return `https://cachet.hackclub.com/users/${slackUserId}/r`;
+}
+
+function getStoredSort(): string {
+  try {
+    const v = localStorage.getItem(SORT_KEY);
+    if (v && sortOptions.some((o) => o.id === v)) return v;
+  } catch {
+    // ignore storage errors
+  }
+  return 'longest-wait';
+}
+
+function getStoredView(): ViewMode {
+  try {
+    const v = localStorage.getItem(VIEW_KEY) as ViewMode;
+    if (v === 'list' || v === 'grid' || v === 'table') return v;
+  } catch {
+    // ignore storage errors
+  }
+  return 'grid';
+}
 
 export function QueuePage() {
   const [data, setData] = useState<QueueData | null>(null);
+  const [reviewer, setReviewer] = useState<Reviewer | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
-  const [sort, setSort] = useState('longest-wait');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [sort, setSort] = useState(getStoredSort);
+  const [viewMode, setViewMode] = useState<ViewMode>(getStoredView);
 
   useEffect(() => {
-    fetch('/fixtures/queue.json')
-      .then((r) => r.json())
-      .then((d: QueueData) => {
-        setData(d);
-        setLoading(false);
-      });
+    Promise.all([
+      fetch('/fixtures/queue.json').then((r) => r.json()),
+      fetch('/fixtures/reviewer.json')
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+    ]).then(([queueData, reviewerData]) => {
+      setData(queueData as QueueData);
+      setReviewer(reviewerData as Reviewer | null);
+      setLoading(false);
+    });
   }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SORT_KEY, sort);
+    } catch {
+      // ignore storage errors
+    }
+  }, [sort]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(VIEW_KEY, viewMode);
+    } catch {
+      // ignore storage errors
+    }
+  }, [viewMode]);
 
   const projectTypes = useMemo(() => {
     if (!data) return [];
@@ -97,46 +144,55 @@ export function QueuePage() {
     setSelectedTypes(next);
   };
 
+  const changeSort = (id: string) => {
+    setSort(id);
+  };
+
+  const changeView = (mode: ViewMode) => {
+    setViewMode(mode);
+  };
+
   if (loading || !data) {
     return (
-      <div className="h-screen bg-[#08061E] flex items-center justify-center">
-        <div className="w-10 h-10 border-2 border-[#F4EBB9] border-t-transparent rounded-full animate-spin" />
+      <div className="h-screen bg-bg flex items-center justify-center">
+        <div className="w-10 h-10 border-2 border-accent border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col bg-[#08061E] overflow-hidden">
+    <div className="h-screen flex flex-col bg-bg overflow-hidden">
       {/* Top bar */}
-      <div className="h-14 shrink-0 bg-[#0E0C25] border-b border-[rgba(131,130,141,0.25)] flex items-center justify-between px-6">
-        <div className="font-bold text-[18px] text-[#F4EBB9]">
-          Stardance <span className="text-white font-normal text-[13px] ml-2">Ship Review</span>
+      <div className="h-14 shrink-0 bg-surface border-b border-border flex items-center justify-between px-6">
+        <div className="font-bold text-[18px] text-accent">
+          Shipwright <span className="text-text font-normal text-[13px] ml-2">Review Queue</span>
         </div>
         <div className="flex items-center gap-3">
-          <p className="text-[13px] text-[#AFB2C1]">{filteredShips.length} of {data.ships.length} projects</p>
+          <p className="text-[13px] text-subtext hidden sm:block">{filteredShips.length} of {data.ships.length} pending</p>
           <Link
             to="/stats"
-            className="py-1.5 px-3.5 rounded-md border border-[rgba(131,130,141,0.25)] bg-[#343651] text-[#AFB2C1] text-[12px] font-bold hover:border-[#F4EBB9] hover:text-[#F4EBB9] transition-all"
+            className="py-1.5 px-3.5 rounded-md border border-border bg-surface2 text-subtext text-[12px] font-bold hover:border-accent hover:text-accent transition-all"
           >
             Stats
           </Link>
-          <button className="py-1.5 px-3.5 rounded-md border border-[rgba(131,130,141,0.25)] bg-[#343651] text-[#AFB2C1] text-[12px] font-bold hover:border-[#F4EBB9] hover:text-[#F4EBB9] transition-all">
+          <button className="py-1.5 px-3.5 rounded-md border border-border bg-surface2 text-subtext text-[12px] font-bold hover:border-accent hover:text-accent transition-all">
             <RefreshCw className="w-3.5 h-3.5 inline mr-1" />
             Refresh
           </button>
+          <ReviewerBadge reviewer={reviewer} />
         </div>
       </div>
 
       {/* Filters */}
-      <div className="shrink-0 bg-[#0E0C25] border-b border-[rgba(131,130,141,0.25)] px-6 py-4 space-y-3">
+      <div className="shrink-0 bg-surface border-b border-border px-6 py-4 space-y-3">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#83828D]" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
           <input
             type="text"
             placeholder="Search by project or author name..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full py-2.5 pl-10 pr-3 bg-[#08061E] border border-[rgba(131,130,141,0.25)] rounded-lg text-white text-sm outline-none transition-all placeholder:text-[#83828D] focus:border-[#F4EBB9]"
+            className="w-full py-2.5 pl-10 pr-3 bg-bg border border-border rounded-lg text-text text-sm outline-none transition-all placeholder:text-muted focus:border-accent"
           />
         </div>
 
@@ -148,8 +204,8 @@ export function QueuePage() {
               className={`
                 py-1.5 px-3.5 rounded-[20px] border text-[12px] font-bold transition-all
                 ${selectedTypes.has(type)
-                  ? 'bg-[rgba(244,235,185,0.12)] border-[#F4EBB9] text-[#F4EBB9]'
-                  : 'border-[rgba(131,130,141,0.25)] bg-[#343651] text-[#AFB2C1] hover:border-[#F4EBB9] hover:text-white'
+                  ? 'bg-accent-subtle border-accent text-accent'
+                  : 'border-border bg-surface2 text-subtext hover:border-accent hover:text-text'
                 }
               `}
             >
@@ -159,7 +215,7 @@ export function QueuePage() {
           {selectedTypes.size > 0 && (
             <button
               onClick={() => setSelectedTypes(new Set())}
-              className="py-1.5 px-3.5 rounded-[20px] border border-[rgba(131,130,141,0.25)] bg-transparent text-[#AFB2C1] text-[12px] font-bold underline hover:text-white"
+              className="py-1.5 px-3.5 rounded-[20px] border border-border bg-transparent text-subtext text-[12px] font-bold underline hover:text-text"
             >
               Clear filters
             </button>
@@ -169,24 +225,23 @@ export function QueuePage() {
 
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto px-6 py-4">
-        {/* Pending queue */}
-        <section className="mb-6">
+        <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-[13px] uppercase tracking-wider text-[#83828D] font-semibold">
-              Pending Queue
-              <span className="text-white/60 font-normal normal-case ml-1">({filteredShips.length})</span>
+            <h2 className="text-[13px] uppercase tracking-wider text-muted font-semibold">
+              Pending
+              <span className="text-text/60 font-normal normal-case ml-1">({filteredShips.length})</span>
             </h2>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1">
                 {sortOptions.map((opt) => (
                   <button
                     key={opt.id}
-                    onClick={() => setSort(opt.id)}
+                    onClick={() => changeSort(opt.id)}
                     className={`
                       py-1 px-2.5 rounded-md text-[11px] font-bold transition-all
                       ${sort === opt.id
-                        ? 'bg-[rgba(244,235,185,0.12)] text-[#F4EBB9] border border-[rgba(244,235,185,0.3)]'
-                        : 'text-[#AFB2C1] hover:text-white'
+                        ? 'bg-accent-subtle text-accent border border-accent/30'
+                        : 'text-subtext hover:text-text'
                       }
                     `}
                   >
@@ -194,35 +249,39 @@ export function QueuePage() {
                   </button>
                 ))}
               </div>
-              <div className="flex items-center bg-[#343651] border border-[rgba(131,130,141,0.25)] rounded-lg p-0.5">
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`p-1 rounded-md transition-all ${viewMode === 'grid' ? 'bg-[#0E0C25] border border-[rgba(131,130,141,0.25)] text-[#F4EBB9]' : 'text-[#AFB2C1] hover:text-white'}`}
-                >
-                  <LayoutGrid className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`p-1 rounded-md transition-all ${viewMode === 'list' ? 'bg-[#0E0C25] border border-[rgba(131,130,141,0.25)] text-[#F4EBB9]' : 'text-[#AFB2C1] hover:text-white'}`}
-                >
-                  <List className="w-4 h-4" />
-                </button>
+              <div className="flex items-center bg-surface2 border border-border rounded-lg p-0.5">
+                <ViewToggleButton mode="list" current={viewMode} onChange={changeView} icon={List} />
+                <ViewToggleButton mode="grid" current={viewMode} onChange={changeView} icon={LayoutGrid} />
+                <ViewToggleButton mode="table" current={viewMode} onChange={changeView} icon={TableIcon} />
               </div>
             </div>
           </div>
 
-          {viewMode === 'grid' ? (
+          {viewMode === 'list' && (
+            <div className="flex flex-col gap-2">
+              {filteredShips.map((ship, i) => (
+                <QueueRow key={ship.id} ship={ship} index={i} />
+              ))}
+              {filteredShips.length === 0 && (
+                <p className="text-center text-subtext py-12">No projects match your filters.</p>
+              )}
+            </div>
+          )}
+
+          {viewMode === 'grid' && (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] content-start gap-4">
               {filteredShips.map((ship, i) => (
                 <GalleryCard key={ship.id} ship={ship} index={i} />
               ))}
               {filteredShips.length === 0 && (
-                <p className="col-span-full text-center text-[#AFB2C1] py-12">No projects match your filters.</p>
+                <p className="col-span-full text-center text-subtext py-12">No projects match your filters.</p>
               )}
             </div>
-          ) : (
-            <div className="flex flex-col border border-[rgba(131,130,141,0.25)] rounded-[10px] bg-[#0E0C25] overflow-hidden">
-              <div className="grid grid-cols-[2fr_1.2fr_1fr_1fr_120px] gap-3 items-center p-3 border-b border-[rgba(131,130,141,0.25)] text-[11px] text-[#83828D] uppercase tracking-wider font-semibold">
+          )}
+
+          {viewMode === 'table' && (
+            <div className="flex flex-col border border-border rounded-lg bg-surface overflow-hidden">
+              <div className="grid grid-cols-[2fr_1.2fr_1fr_1fr_120px] gap-3 items-center p-3 border-b border-border text-[11px] text-muted uppercase tracking-wider font-semibold">
                 <div>Project</div>
                 <div>Author</div>
                 <div>Type</div>
@@ -230,37 +289,139 @@ export function QueuePage() {
                 <div>Status</div>
               </div>
               {filteredShips.map((ship) => (
-                <ListRow key={ship.id} ship={ship} />
+                <TableRow key={ship.id} ship={ship} />
               ))}
+              {filteredShips.length === 0 && (
+                <p className="text-center text-subtext py-12">No projects match your filters.</p>
+              )}
             </div>
           )}
         </section>
-
-        {/* My past reviews */}
-        <section className="mb-6">
-          <h2 className="text-[13px] uppercase tracking-wider text-[#83828D] font-semibold mb-3">
-            My Past Reviews <span className="text-white/60 font-normal normal-case ml-1">({myPastReviews.length})</span>
-          </h2>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] content-start gap-4">
-            {myPastReviews.map((review) => (
-              <PastReviewCard key={review.id} review={review} />
-            ))}
-          </div>
-        </section>
-
-        {/* All past reviews */}
-        <section className="pb-6">
-          <h2 className="text-[13px] uppercase tracking-wider text-[#83828D] font-semibold mb-3">
-            All Past Reviews <span className="text-white/60 font-normal normal-case ml-1">({allPastReviews.length})</span>
-          </h2>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] content-start gap-4">
-            {allPastReviews.map((review) => (
-              <PastReviewCard key={review.id} review={review} />
-            ))}
-          </div>
-        </section>
       </div>
     </div>
+  );
+}
+
+function ReviewerBadge({ reviewer }: { reviewer: Reviewer | null }) {
+  const [avatarError, setAvatarError] = useState(false);
+  const avatarUrl = cachetAvatarUrl(reviewer?.slackUserId || null);
+
+  return (
+    <div className="flex items-center gap-2 pl-2 border-l border-border ml-1">
+      <span className="hidden sm:block text-[13px] text-text font-semibold">{reviewer?.name || 'Reviewer'}</span>
+      {avatarUrl && !avatarError ? (
+        <img
+          src={avatarUrl}
+          alt={reviewer?.name || 'Reviewer'}
+          onError={() => setAvatarError(true)}
+          className="w-8 h-8 rounded-full border border-border object-cover"
+        />
+      ) : (
+        <div className="w-8 h-8 rounded-full bg-surface2 border border-border flex items-center justify-center">
+          <User className="w-4 h-4 text-muted" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ViewToggleButton({
+  mode,
+  current,
+  onChange,
+  icon: Icon,
+}: {
+  mode: ViewMode;
+  current: ViewMode;
+  onChange: (m: ViewMode) => void;
+  icon: React.ElementType;
+}) {
+  const active = current === mode;
+  return (
+    <button
+      onClick={() => onChange(mode)}
+      className={`p-1.5 rounded-md transition-all ${
+        active
+          ? 'bg-surface border border-border text-accent'
+          : 'text-subtext hover:text-text'
+      }`}
+      title={`${mode} view`}
+    >
+      <Icon className="w-4 h-4" />
+    </button>
+  );
+}
+
+function QueueRow({ ship, index }: { ship: QueueShip; index: number }) {
+  const waitingHours = ship.waitingHours || 7 * 24;
+  const isStale = waitingHours >= 72;
+  const isMedium = waitingHours >= 24 && waitingHours < 72;
+  const now = useNow();
+  const queuedAt = new Date(now.getTime() - waitingHours * 3600000).toISOString();
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.02 }}
+    >
+      <Link
+        to={`/review/${ship.id}`}
+        className="group flex items-center justify-between gap-4 p-4 bg-surface border border-border rounded-lg cursor-pointer transition-all duration-150 hover:border-accent hover:bg-surface2"
+      >
+        <div className="flex items-center gap-4 min-w-0">
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="text-[15px] font-semibold text-text leading-snug truncate">
+                {ship.projectTitle}
+              </p>
+              <span className="text-[11px] text-dim font-mono shrink-0">{ship.projectShipIdLabel}</span>
+            </div>
+            <p className="text-[13px] text-subtext truncate">by {ship.ownerDisplayName}</p>
+          </div>
+
+          <div className="hidden sm:flex items-center gap-2 shrink-0">
+            {ship.projectType && (
+              <span className="inline-block py-0.5 px-2.5 bg-accent-subtle text-accent rounded-xl text-[11px] font-bold">
+                {formatTypeName(ship.projectType)}
+              </span>
+            )}
+            {ship.hasBadReview && (
+              <span className="inline-flex items-center gap-1 py-0.5 px-2 rounded-xl text-[11px] font-bold bg-red-subtle text-red border border-red/30">
+                <AlertTriangle className="w-3 h-3" />
+                Bad review
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 shrink-0">
+          <span
+            className={`
+              inline-flex items-center gap-1 py-1 px-2 rounded-lg text-[11px] font-bold border
+              ${isStale ? 'bg-red-subtle text-red border-red/30' :
+                isMedium ? 'bg-yellow-subtle text-yellow border-yellow/30' :
+                'bg-surface2 text-subtext border-border'}
+            `}
+          >
+            <Clock className="w-3 h-3" />
+            Waiting {waitingFor(queuedAt)}
+          </span>
+
+          {ship.claimState === 'locked' ? (
+            <span className="inline-flex items-center gap-1.5 py-1 px-2.5 rounded-lg text-[11px] font-bold bg-yellow-subtle text-yellow border border-yellow/30">
+              <Lock className="w-3 h-3" />
+              <span className="hidden sm:inline">{ship.claimReviewerDisplayName || 'Claimed'}</span>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 py-1 px-2.5 rounded-lg text-[11px] font-bold bg-green-subtle text-green border border-green/30">
+              Open
+              <ArrowRight className="w-3 h-3" />
+            </span>
+          )}
+        </div>
+      </Link>
+    </motion.div>
   );
 }
 
@@ -268,6 +429,8 @@ function GalleryCard({ ship, index }: { ship: QueueShip; index: number }) {
   const waitingHours = ship.waitingHours || 7 * 24;
   const isStale = waitingHours >= 72;
   const isMedium = waitingHours >= 24 && waitingHours < 72;
+  const now = useNow();
+  const queuedAt = new Date(now.getTime() - waitingHours * 3600000).toISOString();
 
   return (
     <motion.div
@@ -277,40 +440,40 @@ function GalleryCard({ ship, index }: { ship: QueueShip; index: number }) {
     >
       <Link
         to={`/review/${ship.id}`}
-        className="flex flex-col gap-1.5 p-5 bg-[#0E0C25] border border-[rgba(131,130,141,0.25)] rounded-[10px] cursor-pointer transition-all duration-150 hover:border-[#F4EBB9] hover:bg-[#343651] h-full"
+        className="flex flex-col gap-1.5 p-5 bg-surface border border-border rounded-lg cursor-pointer transition-all duration-150 hover:border-accent hover:bg-surface2 h-full"
       >
         <div className="flex items-start justify-between gap-2">
-          <p className="text-[15px] font-semibold text-white leading-snug">{ship.projectTitle}</p>
+          <p className="text-[15px] font-semibold text-text leading-snug">{ship.projectTitle}</p>
           {ship.claimState === 'locked' && (
-            <Lock className="w-4 h-4 text-[#FFD598] shrink-0" />
+            <Lock className="w-4 h-4 text-yellow shrink-0" />
           )}
         </div>
-        <p className="text-[13px] text-[#AFB2C1]">{ship.ownerDisplayName}</p>
+        <p className="text-[13px] text-subtext">{ship.ownerDisplayName}</p>
         <div className="flex items-center gap-1.5 flex-wrap mt-auto pt-2">
           {ship.projectType && (
-            <span className="inline-block py-0.5 px-2.5 bg-[rgba(244,235,185,0.12)] text-[#F4EBB9] rounded-xl text-[11px] font-bold">
+            <span className="inline-block py-0.5 px-2.5 bg-accent-subtle text-accent rounded-xl text-[11px] font-bold">
               {formatTypeName(ship.projectType)}
             </span>
           )}
           <span
             className={`
               inline-flex items-center gap-1 py-0.5 px-2 rounded-xl text-[11px] font-bold border
-              ${isStale ? 'bg-[rgba(255,141,157,0.12)] text-[#FF8D9D] border-[rgba(255,141,157,0.3)]' :
-                isMedium ? 'bg-[rgba(255,213,152,0.12)] text-[#FFD598] border-[rgba(255,213,152,0.3)]' :
-                'bg-[#343651] text-[#AFB2C1] border-[rgba(131,130,141,0.25)]'}
+              ${isStale ? 'bg-red-subtle text-red border-red/30' :
+                isMedium ? 'bg-yellow-subtle text-yellow border-yellow/30' :
+                'bg-surface2 text-subtext border-border'}
             `}
           >
             <Clock className="w-3 h-3" />
-            Waiting {waitingFor(new Date(Date.now() - waitingHours * 3600000).toISOString())}
+            Waiting {waitingFor(queuedAt)}
           </span>
           {ship.hasBadReview && (
-            <span className="inline-flex items-center gap-1 py-0.5 px-2 rounded-xl text-[11px] font-bold bg-[rgba(255,141,157,0.12)] text-[#FF8D9D] border border-[rgba(255,141,157,0.3)]">
+            <span className="inline-flex items-center gap-1 py-0.5 px-2 rounded-xl text-[11px] font-bold bg-red-subtle text-red border border-red/30">
               <AlertTriangle className="w-3 h-3" />
               Bad review
             </span>
           )}
           {ship.claimState === 'locked' && (
-            <span className="inline-flex items-center gap-1 py-0.5 px-2 rounded-xl text-[11px] font-bold bg-[rgba(255,213,152,0.12)] text-[#FFD598] border border-[rgba(255,213,152,0.3)]">
+            <span className="inline-flex items-center gap-1 py-0.5 px-2 rounded-xl text-[11px] font-bold bg-yellow-subtle text-yellow border border-yellow/30">
               <Lock className="w-3 h-3" />
               {ship.claimReviewerDisplayName}
             </span>
@@ -321,67 +484,42 @@ function GalleryCard({ ship, index }: { ship: QueueShip; index: number }) {
   );
 }
 
-function ListRow({ ship }: { ship: QueueShip }) {
+function TableRow({ ship }: { ship: QueueShip }) {
   const waitingHours = ship.waitingHours || 7 * 24;
   const isStale = waitingHours >= 72;
+  const now = useNow();
+  const queuedAt = new Date(now.getTime() - waitingHours * 3600000).toISOString();
 
   return (
     <Link
       to={`/review/${ship.id}`}
-      className="grid grid-cols-[2fr_1.2fr_1fr_1fr_120px] gap-3 items-center p-3 border-b border-[rgba(131,130,141,0.15)] last:border-0 hover:bg-[#343651] transition-colors"
+      className="grid grid-cols-[2fr_1.2fr_1fr_1fr_120px] gap-3 items-center p-3 border-b border-border last:border-0 hover:bg-surface2 transition-colors"
     >
-      <div className="font-semibold text-[14px] text-white truncate">{ship.projectTitle}</div>
-      <div className="text-[13px] text-[#AFB2C1] truncate">{ship.ownerDisplayName}</div>
+      <div className="font-semibold text-[14px] text-text truncate">{ship.projectTitle}</div>
+      <div className="text-[13px] text-subtext truncate">{ship.ownerDisplayName}</div>
       <div>
-        <span className="inline-block py-0.5 px-2 bg-[rgba(244,235,185,0.12)] text-[#F4EBB9] rounded-xl text-[11px] font-bold truncate max-w-full">
+        <span className="inline-block py-0.5 px-2 bg-accent-subtle text-accent rounded-xl text-[11px] font-bold truncate max-w-full">
           {formatTypeName(ship.projectType)}
         </span>
       </div>
       <div>
-        <span className={`inline-flex items-center gap-1 py-0.5 px-2 rounded-xl text-[11px] font-bold border ${isStale ? 'bg-[rgba(255,141,157,0.12)] text-[#FF8D9D] border-[rgba(255,141,157,0.3)]' : 'bg-[#343651] text-[#AFB2C1] border-[rgba(131,130,141,0.25)]'}`}>
+        <span className={`inline-flex items-center gap-1 py-0.5 px-2 rounded-xl text-[11px] font-bold border ${isStale ? 'bg-red-subtle text-red border-red/30' : 'bg-surface2 text-subtext border-border'}`}>
           <Clock className="w-3 h-3" />
-          {waitingFor(new Date(Date.now() - waitingHours * 3600000).toISOString())}
+          {waitingFor(queuedAt)}
         </span>
       </div>
-      <div className="text-[12px] text-[#AFB2C1]">
+      <div className="text-[12px] text-subtext">
         {ship.claimState === 'locked' ? (
-          <span className="flex items-center gap-1 text-[#FFD598]">
+          <span className="flex items-center gap-1 text-yellow">
             <Lock className="w-3 h-3" />
             Claimed
           </span>
         ) : (
-          <span className="flex items-center gap-1 text-[#81FFFF]">
+          <span className="flex items-center gap-1 text-green">
             Open
             <ArrowRight className="w-3 h-3" />
           </span>
         )}
-      </div>
-    </Link>
-  );
-}
-
-function PastReviewCard({ review }: { review: { id: number; projectTitle: string; userName: string; status: string; reviewedAt: string; projectType: string; reviewerName?: string } }) {
-  return (
-    <Link
-      to={`/review/${review.id}`}
-      className="flex flex-col gap-1.5 p-4 bg-[#0E0C25] border border-[rgba(131,130,141,0.25)] rounded-[10px] cursor-pointer transition-all duration-150 hover:border-[#F4EBB9] hover:bg-[#343651]"
-    >
-      <p className="text-[15px] font-semibold text-white">{review.projectTitle}</p>
-      <p className="text-[13px] text-[#AFB2C1]">{review.userName}</p>
-      <div className="flex items-center gap-1.5 flex-wrap mt-1">
-        <span className={`inline-flex items-center gap-1 py-0.5 px-2 rounded-xl text-[11px] font-bold border ${
-          review.status === 'approved'
-            ? 'bg-[rgba(129,255,255,0.12)] text-[#81FFFF] border-[rgba(129,255,255,0.3)]'
-            : 'bg-[rgba(255,141,157,0.12)] text-[#FF8D9D] border-[rgba(255,141,157,0.3)]'
-        }`}>
-          {review.status}
-        </span>
-        <span className="inline-block py-0.5 px-2 bg-[rgba(244,235,185,0.12)] text-[#F4EBB9] rounded-xl text-[11px] font-bold">
-          {formatTypeName(review.projectType)}
-        </span>
-      </div>
-      <div className="text-[11px] text-[#83828D] mt-1">
-        {review.reviewerName ? `by ${review.reviewerName} · ` : ''}{timeAgo(review.reviewedAt)}
       </div>
     </Link>
   );

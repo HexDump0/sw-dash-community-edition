@@ -2,14 +2,14 @@
 
 A community-built, Horizons-inspired reviewer dashboard for Stardance shipwrights.
 
-This is the **frontend-first demo** inside `community-edition/frontend`. It uses real fixtures scraped from the live Stardance admin dash with the provided reviewer token, plus mock data for the features Stardance doesn't expose directly (GitHub repo stats, review checklist, AI reviewer report, user notes).
+This is the **frontend-first demo** inside `community-edition/frontend`. It uses real fixtures scraped from the live Stardance admin dash with the provided reviewer token, plus mock data for the features Stardance doesn't expose directly (GitHub repo stats, AI reviewer report, user notes).
 
 ## What's built
 
-- **Queue gallery** — Horizons-style grid/list view with search, type filters, sort, view toggle, claim status, and wait-time badges.
-- **3-column review page** — README, Demo, Project Card, AI Review, and Verdict tabs; left panel with user info, notes, and review history; right panel with GitHub stats/commits and review checklist.
+- **Queue** — compact list view by default, with optional grid and table views; search, type filters, sort, claim status, and wait-time badges. Shows only pending projects.
+- **Review page** — README (rendered as Markdown), Project info (description, AI declaration, links, submission meta, devlogs, banner/screenshot), GitHub stats/commits, and AI Review in the center tabs; verdict panel on the right; user info, private notes, and review history on the left.
 - **My Stats page** — reviewer totals, approval rate, stardust balance, payout request, and history.
-- **Stardance theme** — deep space background, pastel accents (mint/lilac/blue/salmon/yellow/cream), Exo 2 + Playfair Display typography.
+- **Theme** — Catppuccin Mocha by default, implemented through semantic CSS variables so swapping themes later is just changing variable values.
 
 ## Tech stack
 
@@ -18,6 +18,7 @@ This is the **frontend-first demo** inside `community-edition/frontend`. It uses
 - Tailwind CSS v4
 - Framer Motion
 - Lucide icons
+- react-markdown + remark-gfm
 
 ## Run locally
 

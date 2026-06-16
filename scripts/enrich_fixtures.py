@@ -58,9 +58,7 @@ def enrich_review():
     r["owner"] = {
         "displayName": owner_name,
         "slackUserId": "U0ABCDEF",
-        "age": 17,
-        "country": "US",
-        "avatarUrl": f"https://ui-avatars.com/api/?name={owner_name}&background=343651&color=F4EBB9&size=128",
+        "avatarUrl": None,
     }
     r["project"] = {
         "projectId": 5480,
@@ -146,6 +144,10 @@ def enrich_notes():
     save("notes.json", {"projectNote": "", "userNote": ""})
 
 
+def enrich_reviewer():
+    save("reviewer.json", {"name": "Reviewer", "slackUserId": "U0ABCDEF"})
+
+
 def enrich_readme():
     r = load("review.json")
     readme_url = r["links"].get("readme")
@@ -167,6 +169,7 @@ def main():
     enrich_github()
     enrich_checklist()
     enrich_notes()
+    enrich_reviewer()
     enrich_readme()
     print("Fixtures enriched.")
 

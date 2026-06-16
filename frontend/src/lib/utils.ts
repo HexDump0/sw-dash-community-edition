@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+
 export function timeAgo(dateStr: string): string {
   const date = new Date(dateStr);
   const now = new Date();
@@ -38,4 +40,15 @@ export function formatTypeName(type: string): string {
   return type
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+export function useNow(intervalMs = 60000): Date {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), intervalMs);
+    return () => clearInterval(id);
+  }, [intervalMs]);
+
+  return now;
 }
