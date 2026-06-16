@@ -177,11 +177,8 @@ export function QueuePage() {
         </div>
       </div>
 
-      {/* Stats + Filters */}
-      <div className="shrink-0 bg-surface border-b border-border px-6 py-4 space-y-4">
-        <QueueStatsPanel stats={data.stats} leaderboards={data.leaderboards} />
-
-        <div className="space-y-3">
+      {/* Filters */}
+      <div className="shrink-0 bg-surface border-b border-border px-6 py-3 space-y-2">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
           <input
@@ -218,11 +215,12 @@ export function QueuePage() {
             </button>
           )}
         </div>
-        </div>
       </div>
 
       {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        <QueueStatsPanel stats={data.stats} leaderboards={data.leaderboards} />
+
         <section>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-[13px] uppercase tracking-wider text-muted font-semibold">
