@@ -1,7 +1,7 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Bot, Clock, CheckCircle2, XCircle, AlertTriangle, RefreshCw, Download } from 'lucide-react';
 import type { ReviewStatus } from '../../types';
-import { ApiError, getReviewStatus, requestReview } from '../../lib/api';
+import { ApiError, getAuthToken, getReviewStatus, requestReview } from '../../lib/api';
 import { usePollingData } from '../../lib/usePollingData';
 
 interface SwReviewerPanelProps {
@@ -35,6 +35,9 @@ export function SwReviewerPanel({ certId }: SwReviewerPanelProps) {
 
   const [requesting, setRequesting] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
+  const [pdfObjectUrl, setPdfObjectUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   const handleRequest = async () => {
     setRequesting(true);
@@ -59,7 +62,59 @@ export function SwReviewerPanel({ certId }: SwReviewerPanelProps) {
   const hasError = requestError || pollError || status?.error;
   const resultOk = isDone && status?.result?.ok;
   const pdfReady = isDone && (status?.pdf_ready || status?.result?.pdf_ready);
-  const pdfUrl = `/api/reviews/${certId}/pdf`;
+
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
+    // Fetching the PDF requires the bearer auth header, which an iframe src
+    // cannot send. We fetch the blob here and create an object URL to render it.
+    let objectUrl: string | null = null;
+    let active = true;
+
+    const loadPdf = async () => {
+      try {
+        const token = getAuthToken();
+        const resp = await fetch(`/api/reviews/${certId}/pdf`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!resp.ok) {
+          const data = (await resp.json().catch(() => ({}))) as { message?: string; detail?: string };
+          throw new Error(data.message || data.detail || `HTTP ${resp.status}`);
+        }
+        const blob = await resp.blob();
+        if (active) {
+          objectUrl = URL.createObjectURL(blob);
+          setPdfObjectUrl(objectUrl);
+          setPdfError(null);
+        }
+      } catch (e) {
+        if (active) {
+          setPdfError(e instanceof Error ? e.message : 'Could not load PDF');
+        }
+      } finally {
+        if (active) {
+          setPdfLoading(false);
+        }
+      }
+    };
+
+    if (pdfReady) {
+      setPdfLoading(true);
+      setPdfError(null);
+      loadPdf();
+    } else {
+      setPdfLoading(false);
+      setPdfObjectUrl(null);
+      setPdfError(null);
+    }
+
+    return () => {
+      active = false;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [certId, pdfReady]);
 
   return (
     <div className="h-full overflow-y-auto p-6">
@@ -168,19 +223,34 @@ export function SwReviewerPanel({ certId }: SwReviewerPanelProps) {
               <div className="rounded-lg border border-border bg-surface overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-bg">
                   <span className="text-[13px] font-bold text-text">Review PDF</span>
-                  <a
-                    href={pdfUrl}
-                    download={`review_${certId}.pdf`}
-                    className="flex items-center gap-1.5 text-[12px] font-bold text-mauve hover:underline"
-                  >
-                    <Download className="w-3.5 h-3.5" /> Download
-                  </a>
+                  {pdfObjectUrl && (
+                    <a
+                      href={pdfObjectUrl}
+                      download={`review_${certId}.pdf`}
+                      className="flex items-center gap-1.5 text-[12px] font-bold text-mauve hover:underline"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Download
+                    </a>
+                  )}
                 </div>
-                <iframe
-                  src={pdfUrl}
-                  title={`Review PDF for ship ${certId}`}
-                  className="w-full h-[600px] bg-bg"
-                />
+                {pdfLoading && (
+                  <div className="flex flex-col items-center justify-center py-16 bg-bg">
+                    <Clock className="w-8 h-8 text-mauve animate-spin mb-2" />
+                    <p className="text-[13px] text-subtext">Loading PDF…</p>
+                  </div>
+                )}
+                {pdfError && (
+                  <div className="p-4 bg-red-subtle border-b border-red/25 text-[13px] text-red">
+                    {pdfError}
+                  </div>
+                )}
+                {pdfObjectUrl && (
+                  <iframe
+                    src={pdfObjectUrl}
+                    title={`Review PDF for ship ${certId}`}
+                    className="w-full h-[600px] bg-bg"
+                  />
+                )}
               </div>
             )}
 
