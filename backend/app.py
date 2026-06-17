@@ -445,12 +445,45 @@ async def get_next(skip: str | None = None, session: stardance.ReviewerSession =
     return {"empty": False, "certId": int(cert_match.group(1))}
 
 
+@app.post("/api/review/{cert_id}/video-upload")
+async def post_video_upload(
+    cert_id: int,
+    video: UploadFile = File(...),
+    session: stardance.ReviewerSession = Depends(get_current_reviewer),
+) -> dict[str, Any]:
+    """Upload a verdict video to Stardance ActiveStorage and return the signed_id.
+
+    The frontend calls this as soon as a video is dropped so we can show a real
+    progress bar; the signed_id is submitted later with the verdict.
+    """
+    try:
+        await stardance.client.get_path(f"/admin/certification/ship/{cert_id}", session=session)
+    except stardance.StardanceError as exc:
+        raise _wrap_upstream_error(exc)
+
+    video_bytes = await video.read()
+    if not video_bytes:
+        raise HTTPException(status_code=400, detail="empty video file")
+
+    try:
+        signed_id = await stardance.client.direct_upload_video(
+            video=video_bytes,
+            filename=video.filename or "verdict.webm",
+            content_type=video.content_type or "video/webm",
+            session=session,
+        )
+    except stardance.StardanceError as exc:
+        raise _wrap_upstream_error(exc)
+
+    return {"signedId": signed_id}
+
+
 @app.patch("/api/review/{cert_id}")
 async def patch_verdict(
     cert_id: int,
     status: str = Query(...),
     feedback: str = Query(""),
-    video: UploadFile | None = File(None),
+    verdict_video_signed_id: str | None = Query(None),
     session: stardance.ReviewerSession = Depends(get_current_reviewer),
 ) -> dict[str, Any]:
     if status not in ("approved", "returned"):
@@ -458,49 +491,20 @@ async def patch_verdict(
     if len(feedback or "") > 10000:
         raise HTTPException(status_code=400, detail="feedback max 10000 chars")
 
-    try:
-        html = await stardance.client.get_path(f"/admin/certification/ship/{cert_id}", session=session)
-    except stardance.StardanceError as exc:
-        raise _wrap_upstream_error(exc)
-    parsed = parse_review(html, cert_id)
-    direct_upload_url = parsed["claim"].get("directUploadUrl") or ""
     show_path = f"/admin/certification/ship/{cert_id}"
 
     data: dict[str, str] = {
         "certification_ship[status]": status,
         "certification_ship[feedback]": feedback or "",
     }
-
-    files: dict[str, tuple[str, bytes, str]] | None = None
-    if video:
-        video_bytes = await video.read()
-        if direct_upload_url:
-            try:
-                signed_id = await stardance.client.upload_video(
-                    direct_upload_url,
-                    video_bytes,
-                    video.filename or "verdict.webm",
-                    video.content_type or "video/webm",
-                    session=session,
-                )
-            except stardance.StardanceError as exc:
-                raise _wrap_upstream_error(exc)
-            data["certification_ship[verdict_video]"] = signed_id
-        else:
-            files = {
-                "certification_ship[verdict_video]": (
-                    video.filename or "verdict.webm",
-                    video_bytes,
-                    video.content_type or "video/webm",
-                )
-            }
+    if verdict_video_signed_id:
+        data["certification_ship[verdict_video]"] = verdict_video_signed_id
 
     try:
         resp = await stardance.client.patch(
             show_path,
             session=session,
             data=data,
-            files=files,
             fresh_token_from=show_path,
         )
     except stardance.StardanceError as exc:

@@ -9,6 +9,8 @@ requests.
 from __future__ import annotations
 
 import asyncio
+import base64
+import hashlib
 import logging
 from dataclasses import dataclass, field
 from typing import Any
@@ -233,41 +235,105 @@ class Client:
     ) -> httpx.Response:
         return await self._do_mutate("DELETE", path, session=session, fresh_token_from=fresh_token_from)
 
-    async def upload_video(
+    async def create_direct_upload_blob(
+        self,
+        filename: str,
+        content_type: str,
+        video: bytes,
+        *,
+        session: ReviewerSession,
+    ) -> dict[str, Any]:
+        """Create an ActiveStorage blob and return the signed_id + upload URL."""
+        checksum = base64.b64encode(hashlib.md5(video).digest()).decode()
+        headers = {
+            "accept": "application/json",
+            "content-type": "application/json",
+            "x-requested-with": "XMLHttpRequest",
+        }
+        token = session.csrf_token
+        if token:
+            headers["x-csrf-token"] = token
+        body = {
+            "blob": {
+                "filename": filename,
+                "content_type": content_type,
+                "byte_size": len(video),
+                "checksum": checksum,
+            }
+        }
+        resp = await self._request(
+            "POST",
+            "/rails/active_storage/direct_uploads",
+            session=session,
+            json=body,
+            headers=headers,
+        )
+        if resp.status_code not in (200, 201):
+            raise StardanceError(resp.status_code, "direct upload creation failed", resp.text)
+        try:
+            payload = resp.json()
+        except Exception as exc:
+            raise StardanceError(resp.status_code, f"direct upload non-JSON response: {exc}", resp.text)
+        if not payload.get("signed_id") or not payload.get("direct_upload", {}).get("url"):
+            raise StardanceError(resp.status_code, "direct upload missing signed_id or url", resp.text)
+        return payload
+
+    async def upload_to_direct_url(
         self,
         upload_url: str,
+        video: bytes,
+        upload_headers: dict[str, str],
+    ) -> None:
+        """PUT video bytes to the signed direct-upload URL.
+
+        Uses a fresh client so no Stardance session cookies or default browser
+        headers leak to the storage host. Only the headers required by the
+        signed URL (plus Content-Length) are sent.
+        """
+        content_type = upload_headers.get("Content-Type") or upload_headers.get("content-type") or "video/mp4"
+        content_md5 = upload_headers.get("Content-MD5") or upload_headers.get("content-md5")
+        if not content_md5:
+            raise StardanceError(0, "direct upload response missing Content-MD5 header")
+
+        headers = {
+            "Content-Type": content_type,
+            "Content-MD5": content_md5,
+            "Content-Length": str(len(video)),
+        }
+        # Content-Disposition is not signed by ActiveStorage but Rails stores it
+        # on the blob; include it if the direct-upload response supplied it.
+        content_disposition = upload_headers.get("Content-Disposition") or upload_headers.get("content-disposition")
+        if content_disposition:
+            headers["Content-Disposition"] = content_disposition
+
+        async with httpx.AsyncClient(follow_redirects=False, timeout=httpx.Timeout(60.0, connect=10.0)) as client:
+            resp = await client.put(upload_url, content=video, headers=headers)
+        log.debug("direct upload PUT %s -> %s", upload_url, resp.status_code)
+        if resp.status_code not in (200, 201, 204):
+            raise StardanceError(resp.status_code, f"direct upload PUT failed: {resp.text[:500]}", resp.text)
+
+    async def direct_upload_video(
+        self,
         video: bytes,
         filename: str,
         content_type: str,
         *,
         session: ReviewerSession,
     ) -> str:
-        """PUT the video to ActiveStorage direct_uploads and return the signed_id."""
-        token = session.csrf_token
-        headers = {
-            "accept": "application/json",
-            "content-type": content_type,
-            "user-agent": USER_AGENT,
-        }
-        if token:
-            headers["x-csrf-token"] = token
-        headers["content-disposition"] = f'attachment; filename="{filename}"'
-
-        target = upload_url
-        if target.startswith("/"):
-            target = urljoin(BASE, target)
-
-        resp = await self._request("PUT", target, session=session, content=video, headers=headers)
-        if resp.status_code not in (200, 201):
-            raise StardanceError(resp.status_code, "video upload failed", resp.text)
-        try:
-            payload = resp.json()
-        except Exception as exc:
-            raise StardanceError(resp.status_code, f"video upload non-JSON response: {exc}", resp.text)
-        signed_id = payload.get("signed_id")
-        if not signed_id:
-            raise StardanceError(resp.status_code, "video upload missing signed_id", resp.text)
-        return signed_id
+        """Full ActiveStorage direct-upload flow: create blob, PUT bytes, return signed_id."""
+        blob = await self.create_direct_upload_blob(
+            filename=filename,
+            content_type=content_type,
+            video=video,
+            session=session,
+        )
+        direct = blob["direct_upload"]
+        await self.upload_to_direct_url(
+            direct["url"],
+            video,
+            direct.get("headers", {}),
+        )
+        return blob["signed_id"]
 
 
 client = Client()

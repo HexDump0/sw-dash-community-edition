@@ -127,19 +127,71 @@ export async function unclaimReview(certId: number): Promise<{ status: number; l
   return fetchJson(`/api/review/${certId}/claim`, { method: 'DELETE' });
 }
 
+export async function uploadVerdictVideo(
+  certId: number,
+  video: File,
+  onProgress?: (percent: number) => void
+): Promise<{ signedId: string }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const form = new FormData();
+    form.append('video', video, video.name);
+
+    xhr.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable && onProgress) {
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(xhr.responseText) as { signedId: string };
+          resolve(data);
+        } catch {
+          reject(new ApiError('Invalid upload response', xhr.status));
+        }
+      } else {
+        let message = `Upload failed (${xhr.status})`;
+        try {
+          const data = JSON.parse(xhr.responseText) as { message?: string; detail?: string | { message?: string } };
+          if (typeof data.detail === 'object' && data.detail?.message) {
+            message = data.detail.message;
+          } else if (data.message) {
+            message = data.message;
+          }
+        } catch {
+          // ignore
+        }
+        reject(new ApiError(message, xhr.status));
+      }
+    });
+
+    xhr.addEventListener('error', () => reject(new ApiError('Upload failed', 0)));
+    xhr.addEventListener('abort', () => reject(new ApiError('Upload cancelled', 0)));
+
+    xhr.open('POST', `/api/review/${certId}/video-upload`);
+    const token = getAuthToken();
+    if (token) {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    }
+    xhr.send(form);
+  });
+}
+
 export async function submitVerdict(
   certId: number,
   status: 'approved' | 'returned',
   feedback: string,
-  video: File | null
+  verdictVideoSignedId: string | null
 ): Promise<{ status: number; location?: string; flash?: string; nextCertId?: number }> {
-  const form = new FormData();
-  form.append('status', status);
-  form.append('feedback', feedback);
-  if (video) {
-    form.append('video', video, video.name);
+  const params = new URLSearchParams();
+  params.append('status', status);
+  params.append('feedback', feedback);
+  if (verdictVideoSignedId) {
+    params.append('verdict_video_signed_id', verdictVideoSignedId);
   }
-  return fetchJson(`/api/review/${certId}`, { method: 'PATCH', body: form });
+  return fetchJson(`/api/review/${certId}?${params.toString()}`, { method: 'PATCH' });
 }
 
 export async function getMyStats(): Promise<MyStats & { reviewer?: ReviewerInfo; payoutModal?: { minimum: number; unclaimed: number } }> {

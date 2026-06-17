@@ -1,7 +1,28 @@
 import { useEffect, useRef, useState } from 'react';
-import { CheckCircle2, XCircle, Unlock, Clock, Sparkles, Plus, Save, X } from 'lucide-react';
+import {
+  CheckCircle2,
+  XCircle,
+  Unlock,
+  Clock,
+  Sparkles,
+  Plus,
+  Save,
+  X,
+  UploadCloud,
+  Trash2,
+  Play,
+  AlertTriangle,
+} from 'lucide-react';
 import type { ReviewDetail } from '../../types';
-import { claimReview, unclaimReview, submitVerdict, ApiError, getFeedbackTemplates, saveFeedbackTemplate } from '../../lib/api';
+import {
+  claimReview,
+  unclaimReview,
+  submitVerdict,
+  uploadVerdictVideo,
+  ApiError,
+  getFeedbackTemplates,
+  saveFeedbackTemplate,
+} from '../../lib/api';
 import { fixGrammar } from '../../lib/harper';
 
 const BUILTIN_TEMPLATES = [
@@ -28,6 +49,11 @@ export function VerdictPanel({ review, certId, onSubmitted, onRefresh }: Verdict
   const [verdict, setVerdict] = useState<'approved' | 'returned' | null>(null);
   const [feedback, setFeedback] = useState('');
   const [video, setVideo] = useState<File | null>(null);
+  const [videoSignedId, setVideoSignedId] = useState<string | null>(null);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
+  const [uploadState, setUploadState] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedTemplates, setSavedTemplates] = useState<SavedTemplate[]>([]);
@@ -37,11 +63,70 @@ export function VerdictPanel({ review, certId, onSubmitted, onRefresh }: Verdict
   const [templateLabel, setTemplateLabel] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
+  const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
+
+  const resetVideo = () => {
+    if (videoPreviewUrl) {
+      URL.revokeObjectURL(videoPreviewUrl);
+    }
+    setVideo(null);
+    setVideoSignedId(null);
+    setVideoPreviewUrl(null);
+    setUploadState('idle');
+    setUploadProgress(0);
+    setUploadError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const startUpload = async (file: File) => {
+    setUploadState('uploading');
+    setUploadProgress(0);
+    setUploadError(null);
+    try {
+      const { signedId } = await uploadVerdictVideo(certId, file, (percent) => {
+        setUploadProgress(percent);
+      });
+      setVideoSignedId(signedId);
+      setUploadState('done');
+    } catch (e) {
+      setUploadState('error');
+      setUploadError(e instanceof ApiError ? e.message : 'Video upload failed');
+    }
+  };
+
+  const handleVideoSelect = (file: File | undefined) => {
+    if (!file) return;
+    if (!ALLOWED_VIDEO_TYPES.includes(file.type)) {
+      setError('Only mp4, webm, and mov videos are allowed.');
+      return;
+    }
+    if (file.size > MAX_VIDEO_SIZE) {
+      setError('Video must be smaller than 100 MB.');
+      return;
+    }
+    setError(null);
+    resetVideo();
+    setVideo(file);
+    setVideoPreviewUrl(URL.createObjectURL(file));
+    startUpload(file);
+  };
+
   useEffect(() => {
     getFeedbackTemplates()
       .then((templates) => setSavedTemplates(templates))
       .catch(() => setSavedTemplates([]));
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (videoPreviewUrl) {
+        URL.revokeObjectURL(videoPreviewUrl);
+      }
+    };
+  }, [videoPreviewUrl]);
 
   const handleClaim = async () => {
     setBusy(true);
@@ -76,7 +161,7 @@ export function VerdictPanel({ review, certId, onSubmitted, onRefresh }: Verdict
       if (!review.claim.heldByMe) {
         await claimReview(certId);
       }
-      await submitVerdict(certId, verdict, feedback, video);
+      await submitVerdict(certId, verdict, feedback, videoSignedId);
       onSubmitted?.();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Verdict failed');
@@ -86,8 +171,13 @@ export function VerdictPanel({ review, certId, onSubmitted, onRefresh }: Verdict
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith('video/')) setVideo(file);
+    handleVideoSelect(e.dataTransfer.files?.[0]);
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   return (
@@ -263,23 +353,92 @@ export function VerdictPanel({ review, certId, onSubmitted, onRefresh }: Verdict
           type="file"
           accept="video/mp4,video/webm,video/quicktime"
           className="hidden"
-          onChange={(e) => setVideo(e.target.files?.[0] || null)}
+          onChange={(e) => handleVideoSelect(e.target.files?.[0])}
         />
-        <div
-          onClick={() => fileInputRef.current?.click()}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => handleDrop(e)}
-          className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-accent/50 transition-colors cursor-pointer"
-        >
-          {video ? (
-            <p className="text-[13px] text-text font-medium">{video.name}</p>
-          ) : (
-            <>
-              <p className="text-[13px] text-subtext">Drag a video here, or click to choose one</p>
-              <p className="text-[12px] text-muted mt-1">mp4, webm, or mov</p>
-            </>
-          )}
-        </div>
+
+        {videoPreviewUrl ? (
+          <div className="rounded-lg border border-border overflow-hidden bg-bg">
+            <div className="relative aspect-video bg-black group">
+              <video
+                src={videoPreviewUrl}
+                className="w-full h-full object-contain"
+                controls
+                preload="metadata"
+              />
+            </div>
+            <div className="p-3 flex items-center justify-between gap-3 border-t border-border">
+              <div className="min-w-0">
+                <p className="text-[13px] font-medium text-text truncate">{video?.name}</p>
+                <p className="text-[11px] text-muted">{video ? formatFileSize(video.size) : ''}</p>
+              </div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadState === 'uploading'}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border bg-surface2 text-subtext text-[11px] font-bold hover:border-accent hover:text-accent transition-all disabled:opacity-50"
+              >
+                <UploadCloud className="w-3.5 h-3.5" />
+                Replace
+              </button>
+              <button
+                onClick={resetVideo}
+                disabled={uploadState === 'uploading'}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-red/30 bg-red-subtle text-red text-[11px] font-bold hover:bg-red/20 transition-all disabled:opacity-50"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Remove
+              </button>
+            </div>
+
+            {uploadState === 'uploading' && (
+              <div className="px-3 pb-3 border-t border-border pt-3">
+                <div className="flex items-center justify-between text-[11px] mb-1.5">
+                  <span className="text-subtext font-medium">Uploading…</span>
+                  <span className="text-muted">{uploadProgress}%</span>
+                </div>
+                <div className="h-1.5 w-full bg-surface2 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-accent transition-all duration-200"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {uploadState === 'done' && (
+              <div className="px-3 pb-3 border-t border-border pt-3 flex items-center gap-2 text-[12px] text-green">
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Video uploaded and ready</span>
+              </div>
+            )}
+
+            {uploadState === 'error' && (
+              <div className="px-3 pb-3 border-t border-border pt-3">
+                <div className="flex items-start gap-2 text-[12px] text-red mb-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{uploadError || 'Upload failed'}</span>
+                </div>
+                <button
+                  onClick={() => video && startUpload(video)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border bg-surface2 text-subtext text-[11px] font-bold hover:border-accent hover:text-accent transition-all"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  Retry upload
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => handleDrop(e)}
+            className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-accent/50 transition-colors cursor-pointer"
+          >
+            <UploadCloud className="w-8 h-8 text-muted mx-auto mb-2" />
+            <p className="text-[13px] text-subtext">Drag a video here, or click to choose one</p>
+            <p className="text-[12px] text-muted mt-1">mp4, webm, or mov · up to 100 MB</p>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -290,10 +449,10 @@ export function VerdictPanel({ review, certId, onSubmitted, onRefresh }: Verdict
 
       <button
         onClick={handleSubmit}
-        disabled={!verdict || busy}
+        disabled={!verdict || busy || (video !== null && uploadState !== 'done')}
         className="action-btn action-btn--large action-btn--primary w-full disabled:opacity-50"
       >
-        {busy ? 'Submitting…' : 'Submit verdict'}
+        {busy ? 'Submitting…' : video && uploadState !== 'done' ? 'Uploading video…' : 'Submit verdict'}
       </button>
 
       {savePopupOpen && (
