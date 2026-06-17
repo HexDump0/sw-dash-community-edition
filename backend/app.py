@@ -24,12 +24,14 @@ from . import github
 from . import stardance
 from .config import BASE
 from .parsers import (
+    absolutize,
+    extract_review_id_from_url,
     parse_csrf,
     parse_mystats,
     parse_payout_modal,
+    parse_project,
     parse_queue,
     parse_review,
-    extract_review_id_from_url,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -172,6 +174,29 @@ async def get_review(cert_id: int) -> dict[str, Any]:
     except stardance.StardanceError as exc:
         raise _wrap_upstream_error(exc)
     parsed = parse_review(html, cert_id)
+
+    # Enrich with the public project page for real project id, type,
+    # screenshot, total hours, and devlogs.
+    project_path = parsed.get("links", {}).get("project")
+    if project_path:
+        project_id_match = re.search(r"/projects/(\d+)", project_path)
+        if project_id_match:
+            project_id = int(project_id_match.group(1))
+            try:
+                project_html = await stardance.client.get_path(project_path)
+                project_data = parse_project(project_html)
+                parsed["project"].update({
+                    "projectId": project_data.get("projectId") or project_id,
+                    "projectType": project_data.get("projectType") or parsed["project"].get("projectType", ""),
+                    "screenshotUrl": project_data.get("screenshotUrl") or parsed["project"].get("screenshotUrl"),
+                    "totalHours": project_data.get("totalHours"),
+                    "stardanceUrl": absolutize(project_path),
+                })
+                parsed["totalHours"] = project_data.get("totalHours")
+                parsed["devlogs"] = project_data.get("devlogs") or []
+            except stardance.StardanceError:
+                parsed["project"]["stardanceUrl"] = absolutize(project_path)
+
     # Cache for later lookups (notes, checklist) and reviewer history
     db.cache_review(
         cert_id=cert_id,

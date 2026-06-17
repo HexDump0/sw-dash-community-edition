@@ -1,14 +1,6 @@
 import { ExternalLink, Globe, FileText, Clock, Calendar } from 'lucide-react';
-import type { ReviewProject } from '../../types';
+import type { ReviewProject, Devlog } from '../../types';
 import { GitHubIcon } from '../icons/GitHubIcon';
-
-export interface Devlog {
-  id: number;
-  title: string;
-  body: string;
-  durationSeconds: number;
-  createdAt: string;
-}
 
 interface ProjectInfoPanelProps {
   project: ReviewProject;

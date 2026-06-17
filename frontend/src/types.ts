@@ -62,6 +62,16 @@ export interface ReviewProject {
   playableUrl: string | null;
   repoUrl: string | null;
   readmeUrl: string | null;
+  stardanceUrl: string | null;
+  totalHours: number | null;
+}
+
+export interface Devlog {
+  id: number;
+  title: string;
+  body: string;
+  durationSeconds: number;
+  createdAt: string;
 }
 
 export interface TimelineEvent {
@@ -101,9 +111,11 @@ export interface ReviewDetail {
   owner: ReviewOwner;
   project: ReviewProject;
   hackatimeHours: number | null;
+  totalHours: number | null;
   joeFraudPassed: boolean | null;
   joeTrustScore: number | null;
   timeline: TimelineEvent[];
+  devlogs: Devlog[];
 }
 
 export interface GitHubRepo {

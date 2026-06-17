@@ -368,11 +368,15 @@ def parse_review(html: str, cert_id: int) -> dict[str, Any]:
             "playableUrl": links.get("demo"),
             "repoUrl": links.get("repo"),
             "readmeUrl": links.get("readme"),
+            "stardanceUrl": None,
+            "totalHours": None,
         },
         "hackatimeHours": None,
+        "totalHours": None,
         "joeFraudPassed": None,
         "joeTrustScore": None,
         "timeline": [],
+        "devlogs": [],
     }
 
 
@@ -490,6 +494,117 @@ def parse_flash(html: str) -> str | None:
 def extract_review_id_from_url(url: str) -> int | None:
     m = re.search(r"/admin/certification/ship/(\d+)", url)
     return int(m.group(1)) if m else None
+
+
+def _duration_to_seconds(duration_text: str) -> int:
+    """Convert strings like '40m 10s', '2h 30m', '1h' to seconds."""
+    total = 0
+    for m in re.finditer(r"(\d+)\s*(h|m|s)", duration_text.lower()):
+        n = int(m.group(1))
+        unit = m.group(2)
+        if unit == "h":
+            total += n * 3600
+        elif unit == "m":
+            total += n * 60
+        else:
+            total += n
+    return total
+
+
+def _parse_relative_date(date_text: str) -> str:
+    """Best-effort ISO fallback for 'about 2 hours ago' style text."""
+    # We can't reliably convert relative text to an exact ISO date without a
+    # reference, so return the raw text as a placeholder. The frontend formats
+    # it as-is if parsing fails.
+    return date_text.strip("· ").strip() or ""
+
+
+def parse_project(html: str) -> dict[str, Any]:
+    """Parse a public `/projects/:id` page for richer review context."""
+    soup = BeautifulSoup(html, "html.parser")
+
+    # Canonical project id from the latest-ship article
+    article = soup.select_one("article.project-show__latest-ship")
+    project_id = None
+    if article:
+        project_id = parse_int(article.get("data-feed-engagement-project-id-value"))
+
+    title = text_of(soup.select_one(".project-show__title"))
+    description = text_of(soup.select_one(".project-show__summary"))
+
+    # Mission / category as a proxy for project type
+    mission = text_of(soup.select_one(".project-show__latest-ship-mission-link, .mission-panel__title"))
+
+    # Screenshot / banner: prefer the dedicated banner, then the latest-ship
+    # media, then any panel image. Avoid cachet avatars.
+    screenshot = None
+    banner = soup.select_one(".project-show__banner-image")
+    if banner and banner.get("src"):
+        screenshot = banner["src"]
+    if not screenshot:
+        latest_ship = soup.select_one("article.project-show__latest-ship")
+        if latest_ship:
+            for img in latest_ship.select(".feed-post-card__image, .feed-post-card__media img"):
+                if img.get("src"):
+                    screenshot = img["src"]
+                    break
+    if not screenshot:
+        for img in soup.select(".project-show__panel img"):
+            if img.get("src") and "cachet" not in img["src"]:
+                screenshot = img["src"]
+                break
+
+    # Stats: total hours and devlog count
+    stats: dict[str, int] = {}
+    for item in soup.select(".project-show__stats-item"):
+        num_el = item.select_one(".project-show__stats-num")
+        label_el = item.select_one(".project-show__stats-label")
+        if num_el and label_el:
+            key = text_of(label_el).lower()
+            stats[key] = parse_int(text_of(num_el)) or 0
+
+    total_hours = stats.get("total hours")
+
+    # Devlogs: feed cards excluding the latest ship and comment-modal clones
+    devlogs: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    for card in soup.select(".feed-post-card"):
+        if "project-show__latest-ship" in (card.get("class") or []):
+            continue
+        if card.find_parent(class_="comment-modal"):
+            continue
+
+        # Use the card text as a stable id since no reliable id attr exists
+        body_el = card.select_one(".feed-post-card__body.markdown-content")
+        body = text_of(body_el)
+        if not body:
+            continue
+        card_id = body[:80]
+        if card_id in seen_ids:
+            continue
+        seen_ids.add(card_id)
+
+        duration_text = text_of(card.select_one(".feed-post-card__duration"))
+        time_text = text_of(card.select_one(".feed-post-card__time"))
+        title_text = text_of(card.select_one(".feed-post-card__title")) or "Devlog"
+
+        devlogs.append({
+            "id": len(devlogs) + 1,
+            "title": title_text,
+            "body": body,
+            "durationSeconds": _duration_to_seconds(duration_text),
+            "createdAt": _parse_relative_date(time_text),
+        })
+
+    return {
+        "projectId": project_id,
+        "title": title,
+        "description": description,
+        "projectType": mission,
+        "screenshotUrl": screenshot,
+        "totalHours": total_hours,
+        "devlogs": devlogs,
+    }
 
 
 def absolutize(url: str | None) -> str | None:

@@ -115,6 +115,8 @@ export function ReviewPage() {
                 aiDeclaration={review.aiDeclaration}
                 links={review.links}
                 submissionMeta={review.submissionMeta}
+                bannerUrl={review.project.screenshotUrl}
+                devlogs={review.devlogs}
               />
             )}
             {activeTab === 'github' && (

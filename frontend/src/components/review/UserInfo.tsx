@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Copy, Check, User } from 'lucide-react';
+import { Copy, Check, User, ExternalLink } from 'lucide-react';
 import type { ReviewOwner, ReviewProject } from '../../types';
 import { GitHubIcon } from '../icons/GitHubIcon';
 
@@ -129,15 +129,29 @@ export function UserInfo({ user, project }: UserInfoProps) {
         )}
       </div>
 
-      <div className="p-3 rounded-md border border-border bg-bg">
+      <div className="p-3 rounded-md border border-border bg-bg mb-3">
         <div className="text-[11px] uppercase tracking-wider text-muted font-bold mb-1">
-          Submitted hours
+          Project hours
         </div>
         <div className="flex items-baseline gap-1">
-          <span className="text-2xl font-bold text-green">12.5h</span>
-          <span className="text-xs text-muted">Hackatime</span>
+          <span className="text-2xl font-bold text-green">
+            {project.totalHours != null ? `${project.totalHours}h` : '—'}
+          </span>
+          <span className="text-xs text-muted">logged</span>
         </div>
       </div>
+
+      {project.stardanceUrl && (
+        <a
+          href={project.stardanceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-1.5 w-full py-2 px-3 rounded-md border border-border bg-surface2 text-subtext text-[13px] font-bold hover:border-accent hover:text-accent transition-all"
+        >
+          View on Stardance
+          <ExternalLink className="w-3.5 h-3.5" />
+        </a>
+      )}
     </div>
   );
 }
