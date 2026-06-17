@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -16,6 +16,8 @@ import {
 import type { QueueData, QueueShip } from '../types';
 import { waitingFor, formatTypeName, useNow } from '../lib/utils';
 import { QueueStatsPanel } from '../components/queue/QueueStatsPanel';
+import { usePollingData } from '../lib/usePollingData';
+import { ApiError, getQueue, getReviewer } from '../lib/api';
 
 const sortOptions = [
   { id: 'longest-wait', label: 'Longest wait' },
@@ -62,24 +64,28 @@ function getStoredView(): ViewMode {
 export function QueuePage() {
   const [data, setData] = useState<QueueData | null>(null);
   const [reviewer, setReviewer] = useState<Reviewer | null>(null);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
   const [sort, setSort] = useState(getStoredSort);
   const [viewMode, setViewMode] = useState<ViewMode>(getStoredView);
 
-  useEffect(() => {
-    Promise.all([
-      fetch('/fixtures/queue.json').then((r) => r.json()),
-      fetch('/fixtures/reviewer.json')
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null),
-    ]).then(([queueData, reviewerData]) => {
-      setData(queueData as QueueData);
-      setReviewer(reviewerData as Reviewer | null);
-      setLoading(false);
-    });
+  const queueFetcher = useCallback(async () => {
+    let queueData: QueueData;
+    let reviewerData: { name: string; slackUserId: string };
+    try {
+      [queueData, reviewerData] = await Promise.all([getQueue(), getReviewer()]);
+    } catch (e) {
+      if (e instanceof ApiError && e.payload?.error === 'session_dead') {
+        throw new Error('Your Stardance session expired. Please restart the backend with a fresh cookie.', { cause: e });
+      }
+      throw new Error(e instanceof ApiError ? e.message : 'Failed to load queue.', { cause: e });
+    }
+    setData(queueData);
+    setReviewer(reviewerData);
+    return queueData;
   }, []);
+
+  const { loading, error, refresh } = usePollingData(queueFetcher, [], 30000);
 
   useEffect(() => {
     try {
@@ -155,8 +161,13 @@ export function QueuePage() {
 
   if (loading || !data) {
     return (
-      <div className="h-screen bg-bg flex items-center justify-center">
+      <div className="h-screen bg-bg flex flex-col items-center justify-center gap-4">
         <div className="w-10 h-10 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+        {error && (
+          <div className="max-w-md px-4 py-3 rounded-lg bg-red-subtle border border-red/30 text-red text-[13px] text-center">
+            {error}
+          </div>
+        )}
       </div>
     );
   }
@@ -169,13 +180,22 @@ export function QueuePage() {
           Shipwright <span className="text-text font-normal text-[13px] ml-2">Review Queue</span>
         </div>
         <div className="flex items-center gap-3">
-          <button className="py-1.5 px-3.5 rounded-md border border-border bg-surface2 text-subtext text-[12px] font-bold hover:border-accent hover:text-accent transition-all">
+          <button
+            onClick={refresh}
+            className="py-1.5 px-3.5 rounded-md border border-border bg-surface2 text-subtext text-[12px] font-bold hover:border-accent hover:text-accent transition-all"
+          >
             <RefreshCw className="w-3.5 h-3.5 inline mr-1" />
             Refresh
           </button>
           <ReviewerBadge reviewer={reviewer} />
         </div>
       </div>
+
+      {error && (
+        <div className="shrink-0 px-6 py-2 bg-red-subtle border-b border-red/30 text-red text-[13px]">
+          {error}
+        </div>
+      )}
 
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">

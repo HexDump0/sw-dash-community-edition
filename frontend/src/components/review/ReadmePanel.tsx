@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { ExternalLink, FileText } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -6,25 +5,11 @@ import rehypeRaw from 'rehype-raw';
 
 interface ReadmePanelProps {
   readmeUrl: string | null;
+  content: string | null;
+  loading?: boolean;
 }
 
-export function ReadmePanel({ readmeUrl }: ReadmePanelProps) {
-  const [content, setContent] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch('/fixtures/readme.json')
-      .then((r) => r.json())
-      .then((data) => {
-        setContent(data.content);
-        setLoading(false);
-      })
-      .catch(() => {
-        setContent(null);
-        setLoading(false);
-      });
-  }, []);
-
+export function ReadmePanel({ readmeUrl, content, loading }: ReadmePanelProps) {
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">

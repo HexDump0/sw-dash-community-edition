@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, XCircle, Unlock, Clock } from 'lucide-react';
 import type { ReviewDetail } from '../../types';
+import { claimReview, unclaimReview, submitVerdict, ApiError } from '../../lib/api';
 
 const feedbackTemplates = [
   { label: 'Great work!', body: 'This is a solid project. Approved! 🚀' },
@@ -11,16 +12,61 @@ const feedbackTemplates = [
 
 interface VerdictPanelProps {
   review: ReviewDetail;
+  certId: number;
   onSubmitted?: () => void;
+  onRefresh?: () => void;
 }
 
-export function VerdictPanel({ review, onSubmitted }: VerdictPanelProps) {
+export function VerdictPanel({ review, certId, onSubmitted, onRefresh }: VerdictPanelProps) {
   const [verdict, setVerdict] = useState<'approved' | 'returned' | null>(null);
   const [feedback, setFeedback] = useState('');
+  const [video, setVideo] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleSubmit = () => {
-    // TODO: wire to real verdict PATCH
-    onSubmitted?.();
+  const handleClaim = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await claimReview(certId);
+      onRefresh?.();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Claim failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleUnclaim = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await unclaimReview(certId);
+      onSubmitted?.();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Unclaim failed');
+      setBusy(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!verdict) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await submitVerdict(certId, verdict, feedback, video);
+      onSubmitted?.();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Verdict failed');
+      setBusy(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('video/')) setVideo(file);
   };
 
   if (!review.claim.heldByMe) {
@@ -31,20 +77,29 @@ export function VerdictPanel({ review, onSubmitted }: VerdictPanelProps) {
             <Unlock className="w-4 h-4" />
             You don&apos;t hold the claim
           </span>
-          <button className="action-btn action-btn--small action-btn--primary">
-            Claim this review
+          <button
+            onClick={handleClaim}
+            disabled={busy}
+            className="action-btn action-btn--small action-btn--primary disabled:opacity-50"
+          >
+            {busy ? 'Claiming…' : 'Claim this review'}
           </button>
         </div>
+        {error && <div className="mt-3 text-[12px] text-red bg-red-subtle p-2 rounded border border-red/30">{error}</div>}
       </div>
     );
   }
 
   return (
     <div className="p-5">
-                <button className="action-btn action-btn--small action-btn--destructive w-full mb-5">
-            <Unlock className="w-3.5 h-3.5" />
-            Unclaim
-          </button>
+      <button
+        onClick={handleUnclaim}
+        disabled={busy}
+        className="action-btn action-btn--small action-btn--destructive w-full mb-5 disabled:opacity-50"
+      >
+        <Unlock className="w-3.5 h-3.5" />
+        {busy ? 'Working…' : 'Unclaim'}
+      </button>
       {review.claim.expiresAt && (
         <div className="flex items-center justify-between p-3 mb-5 rounded-lg bg-green-subtle border border-green/30">
           <span className="flex items-center gap-2 text-[13px] font-bold text-green">
@@ -123,17 +178,42 @@ export function VerdictPanel({ review, onSubmitted }: VerdictPanelProps) {
         <label className="block text-[11px] uppercase tracking-wider text-muted font-bold mb-2">
           Walkthrough video
         </label>
-        <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-accent/50 transition-colors cursor-pointer">
-          <p className="text-[13px] text-subtext">Drag a video here, or click to choose one</p>
-          <p className="text-[12px] text-muted mt-1">mp4, webm, or mov</p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="video/mp4,video/webm,video/quicktime"
+          className="hidden"
+          onChange={(e) => setVideo(e.target.files?.[0] || null)}
+        />
+        <div
+          onClick={() => fileInputRef.current?.click()}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => handleDrop(e)}
+          className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-accent/50 transition-colors cursor-pointer"
+        >
+          {video ? (
+            <p className="text-[13px] text-text font-medium">{video.name}</p>
+          ) : (
+            <>
+              <p className="text-[13px] text-subtext">Drag a video here, or click to choose one</p>
+              <p className="text-[12px] text-muted mt-1">mp4, webm, or mov</p>
+            </>
+          )}
         </div>
       </div>
 
+      {error && (
+        <div className="mb-5 text-[12px] text-red bg-red-subtle p-3 rounded border border-red/30">
+          {error}
+        </div>
+      )}
+
       <button
         onClick={handleSubmit}
-        className="action-btn action-btn--large action-btn--primary w-full"
+        disabled={!verdict || busy}
+        className="action-btn action-btn--large action-btn--primary w-full disabled:opacity-50"
       >
-        Submit verdict
+        {busy ? 'Submitting…' : 'Submit verdict'}
       </button>
     </div>
   );

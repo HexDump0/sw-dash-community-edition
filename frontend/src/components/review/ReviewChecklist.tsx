@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ChecklistState } from '../../types';
+import { saveChecklist } from '../../lib/api';
 
 const CHECKLIST_ITEMS = [
   'README exists with setup/run instructions',
@@ -13,20 +14,26 @@ const CHECKLIST_ITEMS = [
 
 interface ReviewChecklistProps {
   initial: ChecklistState;
+  certId: number;
+  onChange?: (state: ChecklistState) => void;
 }
 
-export function ReviewChecklist({ initial }: ReviewChecklistProps) {
+export function ReviewChecklist({ initial, certId, onChange }: ReviewChecklistProps) {
   const [checkedItems, setCheckedItems] = useState<number[]>(initial.checkedItems);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const toggleItem = (index: number) => {
+  const toggleItem = async (index: number) => {
     const next = checkedItems.includes(index)
       ? checkedItems.filter((i) => i !== index)
       : [...checkedItems, index];
     setCheckedItems(next);
     setSaveError(null);
-    // Mock save
-    setTimeout(() => setSaveError(null), 100);
+    try {
+      await saveChecklist(certId, next);
+      onChange?.({ checkedItems: next });
+    } catch {
+      setSaveError('Save failed');
+    }
   };
 
   return (

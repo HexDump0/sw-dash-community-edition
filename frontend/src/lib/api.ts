@@ -1,0 +1,112 @@
+import type { QueueData, ReviewDetail, GitHubRepo, NotesState, ChecklistState, MyStats } from '../types';
+
+export class ApiError extends Error {
+  status: number;
+  payload?: { error?: string; message?: string; status?: number };
+
+  constructor(message: string, status: number, payload?: Record<string, unknown>) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.payload = payload as ApiError['payload'];
+  }
+}
+
+async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const resp = await fetch(path, init);
+  const data = (await resp.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!resp.ok) {
+    throw new ApiError(
+      (data.message as string) || `HTTP ${resp.status}`,
+      resp.status,
+      data
+    );
+  }
+  return data as T;
+}
+
+export async function getQueue(): Promise<QueueData> {
+  return fetchJson<QueueData>('/api/queue');
+}
+
+export async function getReviewer(): Promise<{ name: string; slackUserId: string }> {
+  return fetchJson<{ name: string; slackUserId: string }>('/api/reviewer');
+}
+
+export async function getReview(certId: number): Promise<ReviewDetail & { notes: NotesState; checklist: ChecklistState }> {
+  return fetchJson<ReviewDetail & { notes: NotesState; checklist: ChecklistState }>(`/api/review/${certId}`);
+}
+
+export async function getGitHub(repoUrl: string | null): Promise<GitHubRepo | null> {
+  if (!repoUrl) return null;
+  try {
+    return await fetchJson<GitHubRepo>(`/api/github?repoUrl=${encodeURIComponent(repoUrl)}`);
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null;
+    throw e;
+  }
+}
+
+export async function getReadme(url: string | null): Promise<{ content: string } | null> {
+  if (!url) return null;
+  return fetchJson<{ content: string }>(`/api/readme?url=${encodeURIComponent(url)}`);
+}
+
+export async function claimReview(certId: number): Promise<{ status: number; location?: string; flash?: string; nextCertId?: number }> {
+  return fetchJson(`/api/review/${certId}/claim`, { method: 'POST' });
+}
+
+export async function unclaimReview(certId: number): Promise<{ status: number; location?: string; flash?: string }> {
+  return fetchJson(`/api/review/${certId}/claim`, { method: 'DELETE' });
+}
+
+export async function submitVerdict(
+  certId: number,
+  status: 'approved' | 'returned',
+  feedback: string,
+  video: File | null
+): Promise<{ status: number; location?: string; flash?: string; nextCertId?: number }> {
+  const form = new FormData();
+  form.append('status', status);
+  form.append('feedback', feedback);
+  if (video) {
+    form.append('video', video, video.name);
+  }
+  return fetchJson(`/api/review/${certId}`, { method: 'PATCH', body: form });
+}
+
+export async function getMyStats(): Promise<MyStats & { reviewer?: { name: string; slackUserId: string }; payoutModal?: { minimum: number; unclaimed: number } }> {
+  return fetchJson<MyStats & { reviewer?: { name: string; slackUserId: string }; payoutModal?: { minimum: number; unclaimed: number } }>('/api/mystats');
+}
+
+export async function requestPayout(amount: number): Promise<{ status: number; location?: string; flash?: string }> {
+  return fetchJson('/api/mystats/payout', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ amount }),
+  });
+}
+
+export async function getNotes(certId: number): Promise<NotesState> {
+  return fetchJson<NotesState>(`/api/notes/${certId}`);
+}
+
+export async function saveNotes(certId: number, notes: NotesState): Promise<void> {
+  await fetchJson(`/api/notes/${certId}`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(notes),
+  });
+}
+
+export async function getChecklist(certId: number): Promise<ChecklistState> {
+  return fetchJson<ChecklistState>(`/api/checklist/${certId}`);
+}
+
+export async function saveChecklist(certId: number, checkedItems: number[]): Promise<void> {
+  await fetchJson(`/api/checklist/${certId}`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ checkedItems }),
+  });
+}
