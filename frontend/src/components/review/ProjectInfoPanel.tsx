@@ -1,4 +1,7 @@
 import { ExternalLink, Globe, FileText, Clock, Calendar } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import type { ReviewProject, Devlog } from '../../types';
 import { GitHubIcon } from '../icons/GitHubIcon';
 
@@ -6,7 +9,6 @@ interface ProjectInfoPanelProps {
   project: ReviewProject;
   description: string;
   aiDeclaration: string;
-  links: Record<string, string>;
   submissionMeta: Record<string, string>;
   bannerUrl?: string | null;
   devlogs?: Devlog[];
@@ -18,11 +20,17 @@ function formatDuration(seconds: number): string {
   return `${hrs}h`;
 }
 
+function formatDate(dateStr: string): string {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
 export function ProjectInfoPanel({
   project,
   description,
   aiDeclaration,
-  links,
   submissionMeta,
   bannerUrl,
   devlogs,
@@ -120,7 +128,7 @@ export function ProjectInfoPanel({
             <h3 className="text-[11px] uppercase tracking-wider text-muted font-bold mb-3">
               Submission
             </h3>
-            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <dl className="grid grid-cols-3 gap-3">
               {Object.entries(submissionMeta).map(([key, value]) => (
                 <div key={key}>
                   <dt className="text-[11px] uppercase tracking-wider text-muted font-bold mb-0.5">
@@ -133,51 +141,29 @@ export function ProjectInfoPanel({
           </div>
         )}
 
-        {/* Links */}
-        {Object.keys(links).length > 0 && (
-          <div className="p-4 rounded-lg bg-surface border border-border">
-            <h3 className="text-[11px] uppercase tracking-wider text-muted font-bold mb-3">
-              Links
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(links).map(([key, value]) => (
-                <a
-                  key={key}
-                  href={value}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-surface2 border border-border text-subtext text-[12px] font-bold hover:border-accent hover:text-accent transition-colors"
-                >
-                  {key}
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Devlogs */}
-        <div className="p-4 rounded-lg bg-surface border border-border">
-          <h3 className="text-[11px] uppercase tracking-wider text-muted font-bold mb-3">
+        <div className="space-y-4">
+          <h3 className="text-[11px] uppercase tracking-wider text-muted font-bold">
             Devlogs
           </h3>
           {devlogs && devlogs.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {devlogs.map((log) => (
-                <div key={log.id} className="p-3 rounded-md bg-bg border border-border">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[13px] font-bold text-text">{log.title}</span>
-                    <span className="inline-flex items-center gap-1 text-[11px] text-subtext">
-                      <Clock className="w-3 h-3" />
+                <div key={log.id} className="p-4 rounded-lg bg-surface border border-border">
+                  <div className="flex items-center justify-between mb-3 text-[12px] text-subtext">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5" />
+                      {formatDate(log.createdAt)}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5" />
                       {formatDuration(log.durationSeconds)}
                     </span>
                   </div>
-                  <p className="text-[12px] text-subtext line-clamp-3 mb-2">{log.body}</p>
-                  <div className="flex items-center gap-3 text-[11px] text-muted">
-                    <span className="inline-flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      {new Date(log.createdAt).toLocaleDateString()}
-                    </span>
+                  <div className="markdown-content text-[14px]">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                      {log.body}
+                    </ReactMarkdown>
                   </div>
                 </div>
               ))}

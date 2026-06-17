@@ -135,7 +135,7 @@ export function UserInfo({ user, project }: UserInfoProps) {
             className="flex items-center justify-center gap-1 py-2 px-2 rounded-md border border-border bg-surface2 text-subtext text-[13px] font-bold hover:border-accent hover:text-accent transition-all whitespace-nowrap"
           >
             <Star className="w-3.5 h-3.5" />
-            StarDance ↗
+            StarDance
           </a>
         )}
       </div>

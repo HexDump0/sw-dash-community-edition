@@ -597,33 +597,58 @@ def parse_project(html: str) -> dict[str, Any]:
 
     # Devlogs: feed cards excluding the latest ship and comment-modal clones
     devlogs: list[dict[str, Any]] = []
-    seen_ids: set[str] = set()
+    seen_ids: set[int] = set()
     for card in soup.select(".feed-post-card"):
         if "project-show__latest-ship" in (card.get("class") or []):
             continue
         if card.find_parent(class_="comment-modal"):
             continue
 
-        # Use the card text as a stable id since no reliable id attr exists
         body_el = card.select_one(".feed-post-card__body.markdown-content")
-        body = text_of(body_el)
-        if not body:
+        if not body_el:
             continue
-        card_id = body[:80]
-        if card_id in seen_ids:
+        body_html = (body_el.decode_contents() or "").strip()
+        if not body_html:
             continue
-        seen_ids.add(card_id)
+
+        # Stable id from the data attribute when available
+        post_id = None
+        raw_id = card.get("data-feed-engagement-post-id-value") or card.get("id", "").replace("post_", "")
+        if raw_id:
+            post_id = parse_int(str(raw_id))
+        if not post_id:
+            post_id = len(devlogs) + 1
+        if post_id in seen_ids:
+            continue
+        seen_ids.add(post_id)
+
+        # Absolute ISO timestamp from the <time> element
+        time_el = card.select_one("time.feed-post-card__time")
+        created_at = ""
+        if time_el and time_el.get("datetime"):
+            created_at = time_el["datetime"]
+        else:
+            created_at = _parse_relative_date(text_of(time_el))
+
+        # Append any card media images so markdown rendering can show them
+        media_imgs = []
+        for img in card.select(".feed-post-card__media-slide img"):
+            src = img.get("src")
+            if src:
+                media_imgs.append(absolutize(src) or src)
+        if media_imgs:
+            body_html += "\n\n" + "\n\n".join(
+                f'<img src="{src}" alt="" class="rounded-lg max-w-full" />' for src in media_imgs
+            )
 
         duration_text = text_of(card.select_one(".feed-post-card__duration"))
-        time_text = text_of(card.select_one(".feed-post-card__time"))
-        title_text = text_of(card.select_one(".feed-post-card__title")) or "Devlog"
 
         devlogs.append({
-            "id": len(devlogs) + 1,
-            "title": title_text,
-            "body": body,
+            "id": post_id,
+            "title": text_of(card.select_one(".feed-post-card__title")) or "Devlog",
+            "body": body_html,
             "durationSeconds": _duration_to_seconds(duration_text),
-            "createdAt": _parse_relative_date(time_text),
+            "createdAt": created_at,
         })
 
     return {

@@ -109,7 +109,6 @@ export function ReviewPage() {
                 project={review.project}
                 description={review.description}
                 aiDeclaration={review.aiDeclaration}
-                links={review.links}
                 submissionMeta={review.submissionMeta}
                 bannerUrl={review.project.screenshotUrl}
                 devlogs={review.devlogs}
