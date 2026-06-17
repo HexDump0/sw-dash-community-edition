@@ -425,7 +425,7 @@ function ViewToggleButton({
 }
 
 function QueueRow({ ship, index }: { ship: QueueShip; index: number }) {
-  const waitingHours = ship.waitingHours || 7 * 24;
+  const waitingHours = ship.waitingHours ?? 7 * 24;
   const isStale = waitingHours >= 72;
   const isMedium = waitingHours >= 24 && waitingHours < 72;
   const now = useNow();
@@ -498,7 +498,7 @@ function QueueRow({ ship, index }: { ship: QueueShip; index: number }) {
 }
 
 function GalleryCard({ ship, index }: { ship: QueueShip; index: number }) {
-  const waitingHours = ship.waitingHours || 7 * 24;
+  const waitingHours = ship.waitingHours ?? 7 * 24;
   const isStale = waitingHours >= 72;
   const isMedium = waitingHours >= 24 && waitingHours < 72;
   const now = useNow();
@@ -557,7 +557,7 @@ function GalleryCard({ ship, index }: { ship: QueueShip; index: number }) {
 }
 
 function TableRow({ ship }: { ship: QueueShip }) {
-  const waitingHours = ship.waitingHours || 7 * 24;
+  const waitingHours = ship.waitingHours ?? 7 * 24;
   const isStale = waitingHours >= 72;
   const now = useNow();
   const queuedAt = new Date(now.getTime() - waitingHours * 3600000).toISOString();
