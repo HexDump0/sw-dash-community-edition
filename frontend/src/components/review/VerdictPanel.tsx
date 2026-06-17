@@ -55,6 +55,9 @@ export function VerdictPanel({ review, certId, onSubmitted, onRefresh }: Verdict
     setBusy(true);
     setError(null);
     try {
+      if (!review.claim.heldByMe) {
+        await claimReview(certId);
+      }
       await submitVerdict(certId, verdict, feedback, video);
       onSubmitted?.();
     } catch (e) {
@@ -69,47 +72,46 @@ export function VerdictPanel({ review, certId, onSubmitted, onRefresh }: Verdict
     if (file && file.type.startsWith('video/')) setVideo(file);
   };
 
-  if (!review.claim.heldByMe) {
-    return (
-      <div className="p-5">
-        <button
-          onClick={handleClaim}
-          disabled={busy}
-          className="action-btn action-btn--large action-btn--primary w-full mb-3 disabled:opacity-50"
-        >
-          {busy ? 'Claiming…' : 'Claim this review'}
-        </button>
-        <div className="flex items-center justify-between p-3 rounded-lg bg-yellow-subtle border border-yellow/30">
-          <span className="flex items-center gap-2 text-[13px] font-bold text-yellow">
-            <Unlock className="w-4 h-4" />
-            You don&apos;t hold the claim
-          </span>
-        </div>
-        {error && <div className="mt-3 text-[12px] text-red bg-red-subtle p-2 rounded border border-red/30">{error}</div>}
-      </div>
-    );
-  }
-
   return (
     <div className="p-5">
-      <button
-        onClick={handleUnclaim}
-        disabled={busy}
-        className="action-btn action-btn--small action-btn--destructive w-full mb-5 disabled:opacity-50"
-      >
-        <Unlock className="w-3.5 h-3.5" />
-        {busy ? 'Working…' : 'Unclaim'}
-      </button>
-      {review.claim.expiresAt && (
-        <div className="flex items-center justify-between p-3 mb-5 rounded-lg bg-green-subtle border border-green/30">
-          <span className="flex items-center gap-2 text-[13px] font-bold text-green">
-            <Clock className="w-4 h-4" />
-            Claim active
-          </span>
-          <div className="flex flex-col items-end gap-1">
-            <ClaimCountdown expiresAt={review.claim.expiresAt} />
+      {!review.claim.heldByMe ? (
+        <>
+          <button
+            onClick={handleClaim}
+            disabled={busy}
+            className="action-btn action-btn--large action-btn--primary w-full mb-3 disabled:opacity-50"
+          >
+            {busy ? 'Claiming…' : 'Claim this review'}
+          </button>
+          <div className="flex items-center p-3 mb-5 rounded-lg bg-yellow-subtle border border-yellow/30">
+            <span className="flex items-center gap-2 text-[13px] font-bold text-yellow">
+              <Unlock className="w-4 h-4" />
+              You don&apos;t hold the claim — submit will claim first
+            </span>
           </div>
-        </div>
+        </>
+      ) : (
+        <>
+          <button
+            onClick={handleUnclaim}
+            disabled={busy}
+            className="action-btn action-btn--small action-btn--destructive w-full mb-5 disabled:opacity-50"
+          >
+            <Unlock className="w-3.5 h-3.5" />
+            {busy ? 'Working…' : 'Unclaim'}
+          </button>
+          {review.claim.expiresAt && (
+            <div className="flex items-center justify-between p-3 mb-5 rounded-lg bg-green-subtle border border-green/30">
+              <span className="flex items-center gap-2 text-[13px] font-bold text-green">
+                <Clock className="w-4 h-4" />
+                Claim active
+              </span>
+              <div className="flex flex-col items-end gap-1">
+                <ClaimCountdown expiresAt={review.claim.expiresAt} />
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       <div className="mb-5">
