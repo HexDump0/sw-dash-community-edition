@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CheckCircle2, XCircle, Unlock, Clock, Sparkles, Plus, Save } from 'lucide-react';
+import { CheckCircle2, XCircle, Unlock, Clock, Sparkles, Plus, Save, X } from 'lucide-react';
 import type { ReviewDetail } from '../../types';
 import { claimReview, unclaimReview, submitVerdict, ApiError, getFeedbackTemplates, saveFeedbackTemplate } from '../../lib/api';
 import { fixGrammar } from '../../lib/harper';
@@ -33,6 +33,8 @@ export function VerdictPanel({ review, certId, onSubmitted, onRefresh }: Verdict
   const [savedTemplates, setSavedTemplates] = useState<SavedTemplate[]>([]);
   const [grammarBusy, setGrammarBusy] = useState(false);
   const [templateBusy, setTemplateBusy] = useState(false);
+  const [savePopupOpen, setSavePopupOpen] = useState(false);
+  const [templateLabel, setTemplateLabel] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -229,27 +231,15 @@ export function VerdictPanel({ review, certId, onSubmitted, onRefresh }: Verdict
             </select>
 
             <button
-              onClick={async () => {
-                if (!feedback.trim()) return;
-                const label = window.prompt('Name this template:', feedback.trim().slice(0, 40));
-                if (!label?.trim()) return;
-                setTemplateBusy(true);
-                setError(null);
-                try {
-                  await saveFeedbackTemplate(label.trim(), feedback.trim());
-                  const updated = await getFeedbackTemplates();
-                  setSavedTemplates(updated);
-                } catch (e) {
-                  setError(e instanceof ApiError ? e.message : 'Save template failed');
-                } finally {
-                  setTemplateBusy(false);
-                }
+              onClick={() => {
+                setTemplateLabel(feedback.trim().slice(0, 40));
+                setSavePopupOpen(true);
               }}
               disabled={templateBusy || !feedback.trim()}
               title="Save current feedback as a template"
               className="flex items-center gap-1 py-1 px-2 rounded-md border border-border bg-surface2 text-subtext text-[11px] font-bold hover:border-accent hover:text-accent transition-all disabled:opacity-50 whitespace-nowrap"
             >
-              {templateBusy ? <Save className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+              <Plus className="w-3.5 h-3.5" />
               Save
             </button>
           </div>
@@ -305,6 +295,101 @@ export function VerdictPanel({ review, certId, onSubmitted, onRefresh }: Verdict
       >
         {busy ? 'Submitting…' : 'Submit verdict'}
       </button>
+
+      {savePopupOpen && (
+        <SaveTemplatePopup
+          label={templateLabel}
+          onLabelChange={setTemplateLabel}
+          onCancel={() => setSavePopupOpen(false)}
+          onSave={async () => {
+            if (!templateLabel.trim() || !feedback.trim()) return;
+            setTemplateBusy(true);
+            setError(null);
+            try {
+              await saveFeedbackTemplate(templateLabel.trim(), feedback.trim());
+              const updated = await getFeedbackTemplates();
+              setSavedTemplates(updated);
+              setSavePopupOpen(false);
+            } catch (e) {
+              setError(e instanceof ApiError ? e.message : 'Save template failed');
+            } finally {
+              setTemplateBusy(false);
+            }
+          }}
+          busy={templateBusy}
+        />
+      )}
+    </div>
+  );
+}
+
+function SaveTemplatePopup({
+  label,
+  onLabelChange,
+  onCancel,
+  onSave,
+  busy,
+}: {
+  label: string;
+  onLabelChange: (v: string) => void;
+  onCancel: () => void;
+  onSave: () => void;
+  busy: boolean;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-bg/70 backdrop-blur-sm">
+      <div className="w-full max-w-sm rounded-xl border border-border bg-surface shadow-2xl p-5 animate-fade-in">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-[14px] font-bold text-text">Save as template</h3>
+          <button
+            onClick={onCancel}
+            className="p-1 rounded-md text-muted hover:text-text hover:bg-surface2 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <p className="text-[12px] text-subtext mb-3">
+          Give this feedback template a short name so everyone can find it.
+        </p>
+
+        <input
+          ref={inputRef}
+          type="text"
+          value={label}
+          onChange={(e) => onLabelChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') onSave();
+            if (e.key === 'Escape') onCancel();
+          }}
+          placeholder="Template name"
+          className="w-full bg-bg border border-border rounded-lg px-3 py-2.5 text-[13px] text-text placeholder-muted focus:outline-none focus:border-accent transition-colors mb-4"
+        />
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-2 px-3 rounded-lg border border-border bg-surface2 text-subtext text-[13px] font-bold hover:border-accent hover:text-text transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onSave}
+            disabled={busy || !label.trim()}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-accent text-bg text-[13px] font-bold hover:bg-accent-hover transition-all disabled:opacity-50"
+          >
+            {busy ? <Clock className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+            {busy ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

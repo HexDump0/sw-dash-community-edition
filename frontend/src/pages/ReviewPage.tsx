@@ -11,8 +11,10 @@ import { VerdictPanel } from '../components/review/VerdictPanel';
 import { ProjectInfoPanel } from '../components/review/ProjectInfoPanel';
 import { ReadmePanel } from '../components/review/ReadmePanel';
 import { SwReviewerPanel } from '../components/review/SwReviewerPanel';
+import { AuthModal } from '../components/AuthPopup';
 import type { ReviewDetail, GitHubRepo, NotesState } from '../types';
 import { usePollingData } from '../lib/usePollingData';
+import { useAuth } from '../lib/useAuth';
 import { ApiError, getReview, getGitHub, getReadme } from '../lib/api';
 
 const TABS = [
@@ -23,6 +25,34 @@ const TABS = [
 ];
 
 export function ReviewPage() {
+  const { reviewer, loading: authLoading } = useAuth();
+
+  if (authLoading) {
+    return (
+      <div className="h-screen bg-bg flex flex-col items-center justify-center gap-4">
+        <div className="w-10 h-10 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!reviewer) {
+    return (
+      <div className="h-screen flex flex-col bg-bg overflow-hidden">
+        <div className="h-14 shrink-0 bg-surface border-b border-border flex items-center justify-between px-6">
+          <div className="font-bold text-[16px] text-accent truncate">Shipwrights Dash Community Edition™</div>
+          <div />
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6">
+          <AuthModal open />
+        </div>
+      </div>
+    );
+  }
+
+  return <ReviewPageContent />;
+}
+
+function ReviewPageContent() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const certId = Number(id);
@@ -37,8 +67,11 @@ export function ReviewPage() {
     try {
       reviewData = await getReview(certId);
     } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        throw new Error('Your session expired. Please log in again.', { cause: e });
+      }
       if (e instanceof ApiError && e.payload?.error === 'session_dead') {
-        throw new Error('Your Stardance session expired. Please restart the backend with a fresh cookie.', { cause: e });
+        throw new Error('Your Stardance session expired. Please log in again.', { cause: e });
       }
       throw new Error(e instanceof ApiError ? e.message : 'Failed to load review.', { cause: e });
     }

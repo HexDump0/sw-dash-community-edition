@@ -1,26 +1,23 @@
-"""Async HTTP client for Stardance that:
+"""Async HTTP client for Stardance.
 
-* carries the reviewer session cookie,
-* captures the rotated `_stardance_session_v3` value from every response
-  and persists it to SQLite so other processes / restarts keep working,
-* scrapes the CSRF token from the latest HTML page when needed and stores
-  it alongside the cookie,
-* retries once on `InvalidAuthenticityToken` (re-GET for a fresh token),
-* follows redirects up to 5 hops and reports the final URL so callers
-  can detect flash / success states.
+The client is now stateless regarding cookies. Each call receives a
+``ReviewerSession`` containing the reviewer's cookie and optional CSRF token.
+The client only updates the CSRF token in that session object; it does not
+rotate or persist session cookies, since Stardance cookies remain valid across
+requests.
 """
 from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urljoin
 
 import httpx
 from bs4 import BeautifulSoup
 
-from . import db
-from .config import BASE, COOKIE_NAME, session_cookie
+from .config import BASE, COOKIE_NAME
 
 log = logging.getLogger("stardance")
 
@@ -53,8 +50,22 @@ class SessionDead(StardanceError):
     """Raised when Stardance redirects us to /, signalling a dead session."""
 
 
+@dataclass
+class ReviewerSession:
+    """Session context for a single reviewer."""
+
+    slack_user_id: str
+    name: str
+    cookie: str
+    csrf_token: str | None = None
+    cookies: dict[str, str] = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.cookies = {COOKIE_NAME: self.cookie}
+
+
 class Client:
-    """One process-wide async client. Reuses connection pool + cookie jar."""
+    """One process-wide async client. Reuses connection pool; no global cookie."""
 
     def __init__(self) -> None:
         self._client: httpx.AsyncClient | None = None
@@ -62,15 +73,13 @@ class Client:
 
     async def _ensure_client(self) -> httpx.AsyncClient:
         if self._client is None:
-            cookie_value = session_cookie()
-            cookies = {COOKIE_NAME: cookie_value}
             self._client = httpx.AsyncClient(
                 base_url=BASE,
-                cookies=cookies,
                 headers=COMMON_HEADERS,
                 follow_redirects=False,
                 timeout=httpx.Timeout(30.0, connect=10.0),
             )
+            self._client.cookies.clear()
         return self._client
 
     async def close(self) -> None:
@@ -78,53 +87,56 @@ class Client:
             await self._client.aclose()
             self._client = None
 
-    def _update_cookie(self, response: httpx.Response) -> None:
-        """Pull the rotated cookie out of `Set-Cookie` and persist it."""
-        for raw in response.headers.get_list("set-cookie"):
-            # Case-insensitive lookup for the cookie name
-            for part in raw.split(";"):
-                part = part.strip()
-                if "=" in part:
-                    name, _, value = part.partition("=")
-                    if name.strip().lower() == COOKIE_NAME:
-                        if value:
-                            db.save_session_cookie(value)
-                            if self._client:
-                                self._client.cookies.set(COOKIE_NAME, value, domain="stardance.hackclub.com")
-                        return
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        *,
+        session: ReviewerSession,
+        **kwargs: Any,
+    ) -> httpx.Response:
+        """Make a request with the reviewer's cookies and clear the jar afterwards."""
+        client = await self._ensure_client()
+        client.cookies.clear()
+        try:
+            return await client.request(method, path, cookies=session.cookies, **kwargs)
+        finally:
+            client.cookies.clear()
 
-    def _scrape_csrf(self, html: str) -> str | None:
+    def _scrape_csrf(self, html: str, session: ReviewerSession) -> str | None:
         soup = BeautifulSoup(html, "html.parser")
         meta = soup.select_one('meta[name="csrf-token"]')
         if meta and meta.get("content"):
             token = meta["content"]
-            db.save_csrf_token(token)
+            session.csrf_token = token
             return token
         return None
 
-    async def get_html(self, path: str, *, referer: str | None = None, _retried: bool = False) -> tuple[str, str, dict[str, str]]:
-        """GET a Stardance HTML page. Returns (final_url, body, cookies_captured).
+    async def get_html(
+        self,
+        path: str,
+        *,
+        session: ReviewerSession,
+        referer: str | None = None,
+    ) -> tuple[str, str, dict[str, str]]:
+        """GET a Stardance HTML page. Returns (final_url, body, headers).
 
         Raises `SessionDead` on a 302 to `/`.
         """
-        client = await self._ensure_client()
         headers = dict(COMMON_HEADERS)
         if referer:
             headers["referer"] = referer
-        resp = await client.get(path, headers=headers)
+        resp = await self._request("GET", path, session=session, headers=headers)
 
         if resp.status_code in (301, 302, 303, 307, 308):
             location = resp.headers.get("location", "")
             if location.startswith("/") or location.startswith(BASE):
-                # follow one hop; we only care about `/` or auth bounces
                 if location.rstrip("/") in ("", "/"):
                     raise SessionDead(302, "redirected to /", resp.text)
-                # Otherwise just record the redirect target
-                self._update_cookie(resp)
                 return location, "", {"location": location}
             raise StardanceError(resp.status_code, f"unexpected redirect to {location}", resp.text)
 
-        if resp.status_code == 401 or resp.status_code == 403:
+        if resp.status_code in (401, 403):
             raise StardanceError(resp.status_code, "forbidden", resp.text)
         if resp.status_code == 404:
             raise StardanceError(resp.status_code, "not found", resp.text)
@@ -132,13 +144,12 @@ class Client:
         if resp.status_code != 200:
             raise StardanceError(resp.status_code, "upstream error", resp.text)
 
-        self._update_cookie(resp)
-        self._scrape_csrf(resp.text)
+        self._scrape_csrf(resp.text, session)
         return str(resp.url), resp.text, dict(resp.headers)
 
-    async def get_path(self, path: str, *, referer: str | None = None) -> str:
+    async def get_path(self, path: str, *, session: ReviewerSession, referer: str | None = None) -> str:
         """Just fetch HTML, return body. Raises on non-200."""
-        url, body, _ = await self.get_html(path, referer=referer)
+        url, body, _ = await self.get_html(path, session=session, referer=referer)
         return body
 
     async def _do_mutate(
@@ -146,30 +157,26 @@ class Client:
         method: str,
         path: str,
         *,
+        session: ReviewerSession,
         data: dict[str, str] | None = None,
         files: dict[str, tuple[str, bytes, str]] | None = None,
         fresh_token_from: str | None = None,
         _retried: bool = False,
     ) -> httpx.Response:
-        client = await self._ensure_client()
         headers = dict(COMMON_HEADERS)
 
-        # Refresh the CSRF token from a representative HTML page so the
-        # token lines up with the rotated cookie. For ship cert actions we
-        # use the cert's show page; for mystats we use the mystats page.
         refresh_path = fresh_token_from or path
         try:
-            await self.get_html(refresh_path)
+            await self.get_html(refresh_path, session=session)
         except StardanceError:
-            pass  # best-effort; might already have a valid token
+            pass
 
-        token = db.load_csrf_token()
+        token = session.csrf_token
         if token:
             headers["x-csrf-token"] = token
         headers["referer"] = urljoin(BASE, refresh_path)
 
-        resp = await client.request(method, path, data=data, files=files, headers=headers)
-        self._update_cookie(resp)
+        resp = await self._request(method, path, session=session, data=data, files=files, headers=headers)
 
         if resp.status_code in (301, 302, 303, 307, 308):
             return resp
@@ -177,12 +184,13 @@ class Client:
         if resp.status_code == 422 and not _retried and "InvalidAuthenticityToken" in resp.text:
             log.warning("CSRF mismatch, retrying with fresh token")
             try:
-                await self.get_html(refresh_path)
+                await self.get_html(refresh_path, session=session)
             except StardanceError:
                 pass
             return await self._do_mutate(
                 method,
                 path,
+                session=session,
                 data=data,
                 files=files,
                 fresh_token_from=fresh_token_from,
@@ -194,21 +202,48 @@ class Client:
 
         return resp
 
-    async def post(self, path: str, *, data: dict[str, str] | None = None, files: dict[str, tuple[str, bytes, str]] | None = None, fresh_token_from: str | None = None) -> httpx.Response:
-        return await self._do_mutate("POST", path, data=data, files=files, fresh_token_from=fresh_token_from)
+    async def post(
+        self,
+        path: str,
+        *,
+        session: ReviewerSession,
+        data: dict[str, str] | None = None,
+        files: dict[str, tuple[str, bytes, str]] | None = None,
+        fresh_token_from: str | None = None,
+    ) -> httpx.Response:
+        return await self._do_mutate("POST", path, session=session, data=data, files=files, fresh_token_from=fresh_token_from)
 
-    async def patch(self, path: str, *, data: dict[str, str] | None = None, files: dict[str, tuple[str, bytes, str]] | None = None, fresh_token_from: str | None = None) -> httpx.Response:
-        return await self._do_mutate("PATCH", path, data=data, files=files, fresh_token_from=fresh_token_from)
+    async def patch(
+        self,
+        path: str,
+        *,
+        session: ReviewerSession,
+        data: dict[str, str] | None = None,
+        files: dict[str, tuple[str, bytes, str]] | None = None,
+        fresh_token_from: str | None = None,
+    ) -> httpx.Response:
+        return await self._do_mutate("PATCH", path, session=session, data=data, files=files, fresh_token_from=fresh_token_from)
 
-    async def delete(self, path: str, *, fresh_token_from: str | None = None) -> httpx.Response:
-        return await self._do_mutate("DELETE", path, fresh_token_from=fresh_token_from)
+    async def delete(
+        self,
+        path: str,
+        *,
+        session: ReviewerSession,
+        fresh_token_from: str | None = None,
+    ) -> httpx.Response:
+        return await self._do_mutate("DELETE", path, session=session, fresh_token_from=fresh_token_from)
 
-    async def upload_video(self, upload_url: str, video: bytes, filename: str, content_type: str) -> str:
-        """Option B: PUT the video to ActiveStorage direct_uploads and return
-        the `signed_id` we can attach to the verdict form.
-        """
-        client = await self._ensure_client()
-        token = db.load_csrf_token()
+    async def upload_video(
+        self,
+        upload_url: str,
+        video: bytes,
+        filename: str,
+        content_type: str,
+        *,
+        session: ReviewerSession,
+    ) -> str:
+        """PUT the video to ActiveStorage direct_uploads and return the signed_id."""
+        token = session.csrf_token
         headers = {
             "accept": "application/json",
             "content-type": content_type,
@@ -216,19 +251,13 @@ class Client:
         }
         if token:
             headers["x-csrf-token"] = token
-        # The direct_uploads endpoint expects a Content-Type matching the
-        # blob's content type and the body to be the raw bytes. Filename is
-        # passed via the `Content-Disposition: attachment; filename=...`
-        # header (Rails reads it server-side).
         headers["content-disposition"] = f'attachment; filename="{filename}"'
 
-        # Build the absolute URL — upload_url may be relative
         target = upload_url
         if target.startswith("/"):
             target = urljoin(BASE, target)
 
-        resp = await client.put(target, content=video, headers=headers)
-        self._update_cookie(resp)
+        resp = await self._request("PUT", target, session=session, content=video, headers=headers)
         if resp.status_code not in (200, 201):
             raise StardanceError(resp.status_code, "video upload failed", resp.text)
         try:

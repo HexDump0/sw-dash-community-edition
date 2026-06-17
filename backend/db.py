@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import secrets
 import sqlite3
 import threading
 from datetime import datetime, timezone
@@ -27,12 +28,21 @@ def init() -> None:
     with _LOCK:
         _CONN.executescript(
             """
-            CREATE TABLE IF NOT EXISTS sessions (
-                id INTEGER PRIMARY KEY CHECK (id = 1),
+            CREATE TABLE IF NOT EXISTS reviewer_sessions (
+                slack_user_id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
                 cookie_value TEXT NOT NULL,
                 csrf_token TEXT,
                 updated_at TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS auth_tokens (
+                token_hash TEXT PRIMARY KEY,
+                slack_user_id TEXT NOT NULL REFERENCES reviewer_sessions(slack_user_id) ON DELETE CASCADE,
+                created_at TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_auth_tokens_slack_user_id ON auth_tokens(slack_user_id);
 
             CREATE TABLE IF NOT EXISTS project_notes (
                 cert_id INTEGER PRIMARY KEY,
@@ -75,36 +85,121 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def save_session_cookie(cookie: str) -> None:
+def _hash_token(token: str) -> str:
+    """Return a deterministic hash for an auth token."""
+    import hashlib
+
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+# ----- reviewer sessions ----------------------------------------------------
+
+
+ReviewerSession = dict[str, Any]
+
+
+def save_reviewer_session(slack_user_id: str, name: str, cookie: str, csrf_token: str | None = None) -> None:
     with _LOCK:
         _CONN.execute(
-            "INSERT INTO sessions (id, cookie_value, updated_at) VALUES (1, ?, ?) "
-            "ON CONFLICT(id) DO UPDATE SET cookie_value = excluded.cookie_value, "
-            "updated_at = excluded.updated_at",
-            (cookie, _now()),
+            "INSERT INTO reviewer_sessions (slack_user_id, name, cookie_value, csrf_token, updated_at) "
+            "VALUES (?, ?, ?, ?, ?) ON CONFLICT(slack_user_id) DO UPDATE SET "
+            "name = excluded.name, cookie_value = excluded.cookie_value, "
+            "csrf_token = excluded.csrf_token, updated_at = excluded.updated_at",
+            (slack_user_id, name, cookie, csrf_token, _now()),
         )
 
 
-def load_session_cookie() -> str | None:
+def load_reviewer_session(slack_user_id: str) -> ReviewerSession | None:
     with _LOCK:
+        row = _CONN.execute(
+            "SELECT slack_user_id, name, cookie_value, csrf_token, updated_at "
+            "FROM reviewer_sessions WHERE slack_user_id = ?",
+            (slack_user_id,),
+        ).fetchone()
+    if not row:
+        return None
+    return {
+        "slackUserId": row["slack_user_id"],
+        "name": row["name"],
+        "cookie": row["cookie_value"],
+        "csrfToken": row["csrf_token"] or None,
+        "updatedAt": row["updated_at"],
+    }
+
+
+def delete_reviewer_session(slack_user_id: str) -> None:
+    with _LOCK:
+        _CONN.execute("DELETE FROM reviewer_sessions WHERE slack_user_id = ?", (slack_user_id,))
+
+
+def list_reviewer_sessions() -> list[ReviewerSession]:
+    with _LOCK:
+        rows = _CONN.execute(
+            "SELECT slack_user_id, name, cookie_value, csrf_token, updated_at "
+            "FROM reviewer_sessions ORDER BY name"
+        ).fetchall()
+    return [
+        {
+            "slackUserId": r["slack_user_id"],
+            "name": r["name"],
+            "cookie": r["cookie_value"],
+            "csrfToken": r["csrf_token"] or None,
+            "updatedAt": r["updated_at"],
+        }
+        for r in rows
+    ]
+
+
+# ----- auth tokens ----------------------------------------------------------
+
+
+def create_auth_token(slack_user_id: str) -> str:
+    token = secrets.token_urlsafe(32)
+    token_hash = _hash_token(token)
+    with _LOCK:
+        _CONN.execute(
+            "INSERT INTO auth_tokens (token_hash, slack_user_id, created_at) VALUES (?, ?, ?)",
+            (token_hash, slack_user_id, _now()),
+        )
+    return token
+
+
+def delete_auth_token(token: str) -> None:
+    token_hash = _hash_token(token)
+    with _LOCK:
+        _CONN.execute("DELETE FROM auth_tokens WHERE token_hash = ?", (token_hash,))
+
+
+def lookup_auth_token(token: str) -> str | None:
+    token_hash = _hash_token(token)
+    with _LOCK:
+        row = _CONN.execute(
+            "SELECT slack_user_id FROM auth_tokens WHERE token_hash = ?", (token_hash,)
+        ).fetchone()
+    return row["slack_user_id"] if row else None
+
+
+# ----- legacy session migration ---------------------------------------------
+
+
+def load_legacy_session_cookie() -> str | None:
+    """Load the old single-row session cookie if it still exists."""
+    with _LOCK:
+        table = _CONN.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'"
+        ).fetchone()
+        if not table:
+            return None
         row = _CONN.execute("SELECT cookie_value FROM sessions WHERE id = 1").fetchone()
         return row["cookie_value"] if row else None
 
 
-def save_csrf_token(token: str) -> None:
+def drop_legacy_sessions() -> None:
     with _LOCK:
-        _CONN.execute(
-            "INSERT INTO sessions (id, cookie_value, csrf_token, updated_at) "
-            "VALUES (1, '', ?, ?) ON CONFLICT(id) DO UPDATE SET "
-            "csrf_token = excluded.csrf_token, updated_at = excluded.updated_at",
-            (token, _now()),
-        )
+        _CONN.execute("DROP TABLE IF EXISTS sessions")
 
 
-def load_csrf_token() -> str | None:
-    with _LOCK:
-        row = _CONN.execute("SELECT csrf_token FROM sessions WHERE id = 1").fetchone()
-        return row["csrf_token"] if row and row["csrf_token"] else None
+# ----- notes / checklist / reviewer cache -----------------------------------
 
 
 def get_notes(cert_id: int) -> dict[str, str]:

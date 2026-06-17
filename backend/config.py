@@ -23,21 +23,5 @@ def env_required(name: str) -> str:
     return val
 
 
-def session_cookie() -> str:
-    """Pull the reviewer session cookie from env or the on-disk store."""
-    from .db import load_session_cookie
-
-    cookie = env("STARDANCE_SESSION_COOKIE")
-    if cookie:
-        return cookie
-    stored = load_session_cookie()
-    if stored:
-        return stored
-    raise RuntimeError(
-        "No Stardance session cookie configured. Set STARDANCE_SESSION_COOKIE "
-        "or restart with the cookie in the .env file."
-    )
-
-
 def github_token() -> str | None:
     return env("GITHUB_TOKEN")

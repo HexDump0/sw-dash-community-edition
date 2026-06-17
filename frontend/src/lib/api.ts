@@ -1,5 +1,7 @@
 import type { QueueData, ReviewDetail, GitHubRepo, NotesState, ChecklistState, MyStats } from '../types';
 
+const TOKEN_KEY = 'stardance.authToken';
+
 export class ApiError extends Error {
   status: number;
   payload?: { error?: string; message?: string; status?: number };
@@ -12,10 +14,45 @@ export class ApiError extends Error {
   }
 }
 
+export function getAuthToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setAuthToken(token: string | null): void {
+  try {
+    if (token) {
+      localStorage.setItem(TOKEN_KEY, token);
+    } else {
+      localStorage.removeItem(TOKEN_KEY);
+    }
+  } catch {
+    // ignore storage errors
+  }
+}
+
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const resp = await fetch(path, init);
+  const token = getAuthToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  if (init?.headers) {
+    const initHeaders = init.headers as Record<string, string>;
+    for (const [k, v] of Object.entries(initHeaders)) {
+      headers[k] = v;
+    }
+  }
+
+  const resp = await fetch(path, { ...init, headers });
   const data = (await resp.json().catch(() => ({}))) as Record<string, unknown>;
   if (!resp.ok) {
+    if (resp.status === 401) {
+      setAuthToken(null);
+    }
     throw new ApiError(
       (data.message as string) || `HTTP ${resp.status}`,
       resp.status,
@@ -25,12 +62,42 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
+export interface ReviewerInfo {
+  name: string;
+  slackUserId: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  reviewer: ReviewerInfo;
+}
+
+export async function loginWithCurl(curl: string): Promise<LoginResponse> {
+  return fetchJson<LoginResponse>('/api/login', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ curl }),
+  });
+}
+
+export async function logout(): Promise<void> {
+  try {
+    await fetchJson('/api/logout', { method: 'POST' });
+  } finally {
+    setAuthToken(null);
+  }
+}
+
+export async function getMe(): Promise<ReviewerInfo> {
+  return fetchJson<ReviewerInfo>('/api/me');
+}
+
 export async function getQueue(): Promise<QueueData> {
   return fetchJson<QueueData>('/api/queue');
 }
 
-export async function getReviewer(): Promise<{ name: string; slackUserId: string }> {
-  return fetchJson<{ name: string; slackUserId: string }>('/api/reviewer');
+export async function getReviewer(): Promise<ReviewerInfo> {
+  return fetchJson<ReviewerInfo>('/api/reviewer');
 }
 
 export async function getReview(certId: number): Promise<ReviewDetail & { notes: NotesState; checklist: ChecklistState }> {
@@ -75,8 +142,8 @@ export async function submitVerdict(
   return fetchJson(`/api/review/${certId}`, { method: 'PATCH', body: form });
 }
 
-export async function getMyStats(): Promise<MyStats & { reviewer?: { name: string; slackUserId: string }; payoutModal?: { minimum: number; unclaimed: number } }> {
-  return fetchJson<MyStats & { reviewer?: { name: string; slackUserId: string }; payoutModal?: { minimum: number; unclaimed: number } }>('/api/mystats');
+export async function getMyStats(): Promise<MyStats & { reviewer?: ReviewerInfo; payoutModal?: { minimum: number; unclaimed: number } }> {
+  return fetchJson<MyStats & { reviewer?: ReviewerInfo; payoutModal?: { minimum: number; unclaimed: number } }>('/api/mystats');
 }
 
 export async function requestPayout(amount: number): Promise<{ status: number; location?: string; flash?: string }> {
@@ -131,4 +198,3 @@ export async function saveFeedbackTemplate(label: string, body: string): Promise
   });
   return data.template;
 }
-

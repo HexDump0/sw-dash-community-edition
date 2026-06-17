@@ -2,9 +2,9 @@
 
 A community-built, Horizons-inspired reviewer dashboard for Stardance shipwrights.
 
-It now has a real **FastAPI backend** that proxies Stardance HTML pages using a
-stored reviewer session cookie, plus a **React + Vite frontend** that talks to
-that backend. No more fixture files for normal operation.
+It now has a real **FastAPI backend** that proxies Stardance HTML pages using
+per-reviewer session cookies, plus a **React + Vite frontend** that talks to that
+backend. No more fixture files for normal operation.
 
 ## What's built
 
@@ -15,6 +15,9 @@ that backend. No more fixture files for normal operation.
   review checklist, and review history.
 - **My stats** — reviewer totals, approval rate, stardust balance, payout request,
   and history (inlined into the queue page stats card).
+- **Multi-reviewer auth** — each reviewer logs in by pasting their own curl
+  command; sessions are stored keyed by Slack id so 10–15 reviewers can share
+  one backend without leaking cookies.
 - **Theme** — Catppuccin Mocha by default, implemented through semantic CSS
   variables so swapping themes later is just changing variable values.
 
@@ -27,7 +30,7 @@ that backend. No more fixture files for normal operation.
 - Lucide icons
 - react-markdown + remark-gfm
 - Python 3.14 + FastAPI + uvicorn + httpx + BeautifulSoup
-- SQLite for reviewer notes, checklist state, and cached cookies
+- SQLite for reviewer notes, checklist state, cached cookies, and auth tokens
 
 ## Run locally
 
@@ -38,14 +41,15 @@ You need two terminals.
 ```bash
 cd community-edition
 .venv/bin/pip install -r backend/requirements.txt
-export STARDANCE_SESSION_COOKIE='<paste your _stardance_session_v3 cookie here>'
 export GITHUB_TOKEN='<optional GitHub personal access token>'
 .venv/bin/uvicorn backend.app:app --reload --port 8000
 ```
 
-The backend stores the rotated Stardance cookie in `backend/data/dash.db`, so
-after the first startup you can omit `STARDANCE_SESSION_COOKIE` until the
-session dies.
+The backend no longer requires `STARDANCE_SESSION_COOKIE` to start. Reviewers
+log in through the frontend.
+
+If you do set `STARDANCE_SESSION_COOKIE`, the backend will pre-warm one
+reviewer session from it on startup so the first user does not have to log in.
 
 ### 2. Frontend
 
@@ -58,6 +62,25 @@ npm run dev
 Open `http://localhost:5173`.
 
 Vite proxies `/api/*` to the backend automatically (see `vite.config.ts`).
+
+## Logging in
+
+1. Open the frontend and click **Log in** in the top-right reviewer badge.
+2. Copy a curl request to any Stardance page from your browser's DevTools
+   Network tab. It will look something like:
+
+   ```bash
+   curl 'https://stardance.hackclub.com/admin/certification/ship' \
+     -H 'accept: text/html,...' \
+     -H 'user-agent: ...' \
+     -b '_stardance_session_v3=<your cookie>'
+   ```
+
+3. Paste the whole command into the popup and click **Log in**.
+4. The backend extracts `_stardance_session_v3`, validates it by fetching your
+   mystats page, and stores the session keyed by your Slack id.
+
+Click the badge again and choose **Log out** to remove your session.
 
 ## Updating demo fixtures (optional)
 
@@ -78,6 +101,9 @@ Key routes:
 
 | Method | Path | Purpose |
 | --- | --- | --- |
+| `POST` | `/api/login` | Paste curl command; returns bearer token + reviewer |
+| `POST` | `/api/logout` | Invalidate token and delete stored session cookie |
+| `GET` | `/api/me` | Current reviewer info |
 | `GET` | `/api/queue` | Queue + stats + leaderboards (all pages merged) |
 | `GET` | `/api/review/:id` | Review detail (includes notes + checklist) |
 | `POST` | `/api/review/:id/claim` | Claim |

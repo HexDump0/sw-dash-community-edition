@@ -12,12 +12,15 @@ import {
   LayoutGrid,
   Table as TableIcon,
   User,
+  LogIn,
 } from 'lucide-react';
 import type { QueueData, QueueShip } from '../types';
 import { waitingFor, formatTypeName, useNow } from '../lib/utils';
 import { QueueStatsPanel } from '../components/queue/QueueStatsPanel';
 import { usePollingData } from '../lib/usePollingData';
-import { ApiError, getQueue, getReviewer } from '../lib/api';
+import { ApiError, getQueue } from '../lib/api';
+import { useAuth } from '../lib/useAuth';
+import { AuthPopup, AuthModal } from '../components/AuthPopup';
 
 const sortOptions = [
   { id: 'longest-wait', label: 'Longest wait' },
@@ -62,8 +65,45 @@ function getStoredView(): ViewMode {
 }
 
 export function QueuePage() {
+  const { reviewer, loading: authLoading } = useAuth();
+
+  if (authLoading) {
+    return (
+      <div className="h-screen bg-bg flex flex-col items-center justify-center gap-4">
+        <div className="w-10 h-10 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!reviewer) {
+    return <QueueLoginScreen />;
+  }
+
+  return <QueuePageContent />;
+}
+
+function QueueLoginScreen() {
+  return (
+    <div className="h-screen flex flex-col bg-bg overflow-hidden">
+      <div className="h-14 shrink-0 bg-surface border-b border-border flex items-center justify-between px-6">
+        <div className="font-bold text-[16px] text-accent truncate">Shipwrights Dash Community Edition™</div>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <ReviewerBadge reviewer={null} onClick={() => {}} />
+          </div>
+        </div>
+      </div>
+      <div className="flex-1 flex flex-col items-center justify-center gap-4 p-6">
+        <AuthModal open />
+      </div>
+    </div>
+  );
+}
+
+function QueuePageContent() {
+  const { reviewer } = useAuth();
+  const [popupOpen, setPopupOpen] = useState(false);
   const [data, setData] = useState<QueueData | null>(null);
-  const [reviewer, setReviewer] = useState<Reviewer | null>(null);
   const [search, setSearch] = useState('');
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
   const [sort, setSort] = useState(getStoredSort);
@@ -71,17 +111,18 @@ export function QueuePage() {
 
   const queueFetcher = useCallback(async () => {
     let queueData: QueueData;
-    let reviewerData: { name: string; slackUserId: string };
     try {
-      [queueData, reviewerData] = await Promise.all([getQueue(), getReviewer()]);
+      queueData = await getQueue();
     } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        throw new Error('Your session expired. Please log in again.', { cause: e });
+      }
       if (e instanceof ApiError && e.payload?.error === 'session_dead') {
-        throw new Error('Your Stardance session expired. Please restart the backend with a fresh cookie.', { cause: e });
+        throw new Error('Your Stardance session expired. Please log in again.', { cause: e });
       }
       throw new Error(e instanceof ApiError ? e.message : 'Failed to load queue.', { cause: e });
     }
     setData(queueData);
-    setReviewer(reviewerData);
     return queueData;
   }, []);
 
@@ -187,7 +228,10 @@ export function QueuePage() {
             <RefreshCw className="w-3.5 h-3.5" />
             Refresh
           </button>
-          <ReviewerBadge reviewer={reviewer} />
+          <div className="relative">
+            <ReviewerBadge reviewer={reviewer} onClick={() => setPopupOpen((v) => !v)} />
+            <AuthPopup open={popupOpen} onClose={() => setPopupOpen(false)} />
+          </div>
         </div>
       </div>
 
@@ -318,26 +362,38 @@ export function QueuePage() {
   );
 }
 
-function ReviewerBadge({ reviewer }: { reviewer: Reviewer | null }) {
+function ReviewerBadge({ reviewer, onClick }: { reviewer: Reviewer | null; onClick: () => void }) {
   const [avatarError, setAvatarError] = useState(false);
   const avatarUrl = cachetAvatarUrl(reviewer?.slackUserId || null);
+  const isLoggedIn = Boolean(reviewer);
 
   return (
-    <div className="flex items-center gap-2 pl-2 border-l border-border ml-1">
-      <span className="hidden sm:block text-[13px] text-text font-semibold">{reviewer?.name || 'Reviewer'}</span>
-      {avatarUrl && !avatarError ? (
-        <img
-          src={avatarUrl}
-          alt={reviewer?.name || 'Reviewer'}
-          onError={() => setAvatarError(true)}
-          className="w-8 h-8 rounded-full border border-border object-cover"
-        />
+    <button
+      onClick={onClick}
+      className="flex items-center gap-2 pl-2 border-l border-border ml-1 rounded-md px-1.5 py-1 hover:bg-surface2/60 transition-colors"
+    >
+      <span className="hidden sm:block text-[13px] text-text font-semibold">
+        {reviewer?.name || 'Log in'}
+      </span>
+      {isLoggedIn ? (
+        avatarUrl && !avatarError ? (
+          <img
+            src={avatarUrl}
+            alt={reviewer?.name || 'Reviewer'}
+            onError={() => setAvatarError(true)}
+            className="w-8 h-8 rounded-full border border-border object-cover"
+          />
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-surface2 border border-border flex items-center justify-center">
+            <User className="w-4 h-4 text-muted" />
+          </div>
+        )
       ) : (
-        <div className="w-8 h-8 rounded-full bg-surface2 border border-border flex items-center justify-center">
-          <User className="w-4 h-4 text-muted" />
+        <div className="w-8 h-8 rounded-full bg-accent-subtle border border-accent/30 flex items-center justify-center">
+          <LogIn className="w-4 h-4 text-accent" />
         </div>
       )}
-    </div>
+    </button>
   );
 }
 
