@@ -169,7 +169,7 @@ export function VerdictPanel({ review, certId, onSubmitted, onRefresh }: Verdict
           <label className="text-[11px] uppercase tracking-wider text-muted font-bold">
             Feedback
           </label>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={async () => {
                 if (!feedback.trim()) return;
@@ -185,11 +185,13 @@ export function VerdictPanel({ review, certId, onSubmitted, onRefresh }: Verdict
                 }
               }}
               disabled={grammarBusy || !feedback.trim()}
-              className="inline-flex items-center gap-1 py-1 px-2 rounded-md border border-border bg-surface2 text-subtext text-[11px] font-bold hover:border-accent hover:text-accent transition-all disabled:opacity-50"
+              title={grammarBusy ? 'Fixing grammar…' : 'Fix grammar'}
+              className="flex items-center gap-1 py-1 px-2 rounded-md border border-border bg-surface2 text-subtext text-[11px] font-bold hover:border-accent hover:text-accent transition-all disabled:opacity-50 whitespace-nowrap"
             >
-              <Sparkles className="w-3 h-3" />
-              {grammarBusy ? 'Fixing…' : 'Fix grammar'}
+              <Sparkles className="w-3.5 h-3.5" />
+              {grammarBusy ? 'Fixing…' : 'Fix'}
             </button>
+
             <select
               className="bg-surface2 border border-border rounded-md text-[11px] text-text px-2 py-1 focus:outline-none focus:border-accent"
               value=""
@@ -205,7 +207,7 @@ export function VerdictPanel({ review, certId, onSubmitted, onRefresh }: Verdict
                 e.target.value = '';
               }}
             >
-              <option value="">Insert template...</option>
+              <option value="">Templates</option>
               {BUILTIN_TEMPLATES.length > 0 && (
                 <optgroup label="Built-in">
                   {BUILTIN_TEMPLATES.map((t) => (
@@ -225,6 +227,7 @@ export function VerdictPanel({ review, certId, onSubmitted, onRefresh }: Verdict
                 </optgroup>
               )}
             </select>
+
             <button
               onClick={async () => {
                 if (!feedback.trim()) return;
@@ -243,9 +246,10 @@ export function VerdictPanel({ review, certId, onSubmitted, onRefresh }: Verdict
                 }
               }}
               disabled={templateBusy || !feedback.trim()}
-              className="inline-flex items-center gap-1 py-1 px-2 rounded-md border border-border bg-surface2 text-subtext text-[11px] font-bold hover:border-accent hover:text-accent transition-all disabled:opacity-50"
+              title="Save current feedback as a template"
+              className="flex items-center gap-1 py-1 px-2 rounded-md border border-border bg-surface2 text-subtext text-[11px] font-bold hover:border-accent hover:text-accent transition-all disabled:opacity-50 whitespace-nowrap"
             >
-              {templateBusy ? <Save className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+              {templateBusy ? <Save className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
               Save
             </button>
           </div>
