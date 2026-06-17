@@ -358,6 +358,27 @@ async def post_payout(payload: PayoutPayload) -> dict[str, Any]:
     return _follow_redirects(resp)
 
 
+# ----- feedback templates / grammar fix -------------------------------------
+
+
+@app.get("/api/feedback-templates")
+async def get_feedback_templates() -> dict[str, Any]:
+    return {"templates": db.get_feedback_templates()}
+
+
+class FeedbackTemplatePayload(BaseModel):
+    label: str
+    body: str
+
+
+@app.post("/api/feedback-templates")
+async def post_feedback_template(payload: FeedbackTemplatePayload) -> dict[str, Any]:
+    if not payload.label.strip() or not payload.body.strip():
+        raise HTTPException(status_code=400, detail="label and body are required")
+    template = db.save_feedback_template(payload.label.strip(), payload.body.strip())
+    return {"ok": True, "template": template}
+
+
 # ----- notes / checklist / reviewer -----------------------------------------
 
 

@@ -60,6 +60,13 @@ def init() -> None:
                 payload TEXT NOT NULL,
                 fetched_at TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS feedback_templates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                label TEXT NOT NULL UNIQUE,
+                body TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
             """
         )
 
@@ -186,6 +193,29 @@ def load_cached_reviews() -> list[dict[str, Any]]:
             "FROM review_meta ORDER BY fetched_at DESC"
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+def get_feedback_templates() -> list[dict[str, Any]]:
+    with _LOCK:
+        rows = _CONN.execute(
+            "SELECT id, label, body, created_at FROM feedback_templates ORDER BY label"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def save_feedback_template(label: str, body: str) -> dict[str, Any]:
+    with _LOCK:
+        _CONN.execute(
+            "INSERT INTO feedback_templates (label, body, created_at) VALUES (?, ?, ?) "
+            "ON CONFLICT(label) DO UPDATE SET body = excluded.body, "
+            "created_at = excluded.created_at",
+            (label, body, _now()),
+        )
+        row = _CONN.execute(
+            "SELECT id, label, body, created_at FROM feedback_templates WHERE label = ?",
+            (label,),
+        ).fetchone()
+    return dict(row) if row else {"id": 0, "label": label, "body": body, "created_at": _now()}
 
 
 init()

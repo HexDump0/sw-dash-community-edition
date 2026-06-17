@@ -86,7 +86,7 @@ export function ReviewPage() {
         </div>
       )}
 
-      <div className="flex-1 grid grid-cols-[280px_1fr_340px] overflow-hidden">
+      <div className="flex-1 grid grid-cols-[280px_1fr_380px] overflow-hidden">
         {/* LEFT PANEL */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}

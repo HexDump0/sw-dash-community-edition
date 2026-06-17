@@ -110,3 +110,25 @@ export async function saveChecklist(certId: number, checkedItems: number[]): Pro
     body: JSON.stringify({ checkedItems }),
   });
 }
+
+export interface FeedbackTemplate {
+  id: number;
+  label: string;
+  body: string;
+  createdAt: string;
+}
+
+export async function getFeedbackTemplates(): Promise<FeedbackTemplate[]> {
+  const data = await fetchJson<{ templates: FeedbackTemplate[] }>('/api/feedback-templates');
+  return data.templates || [];
+}
+
+export async function saveFeedbackTemplate(label: string, body: string): Promise<FeedbackTemplate> {
+  const data = await fetchJson<{ template: FeedbackTemplate }>('/api/feedback-templates', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ label, body }),
+  });
+  return data.template;
+}
+

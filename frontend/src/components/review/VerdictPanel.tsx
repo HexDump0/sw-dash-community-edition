@@ -1,14 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
-import { CheckCircle2, XCircle, Unlock, Clock } from 'lucide-react';
+import { CheckCircle2, XCircle, Unlock, Clock, Sparkles, Plus, Save } from 'lucide-react';
 import type { ReviewDetail } from '../../types';
-import { claimReview, unclaimReview, submitVerdict, ApiError } from '../../lib/api';
+import { claimReview, unclaimReview, submitVerdict, ApiError, getFeedbackTemplates, saveFeedbackTemplate } from '../../lib/api';
+import { fixGrammar } from '../../lib/harper';
 
-const feedbackTemplates = [
+const BUILTIN_TEMPLATES = [
   { label: 'Great work!', body: 'This is a solid project. Approved! 🚀' },
   { label: 'Needs demo', body: 'Please add a working demo link so we can verify the project in action.' },
   { label: 'README needed', body: 'Could you add a README with setup instructions and a screenshot?' },
   { label: 'Not original', body: 'This appears to follow a tutorial closely. Please add substantial original work and resubmit.' },
 ];
+
+interface SavedTemplate {
+  id: number;
+  label: string;
+  body: string;
+}
 
 interface VerdictPanelProps {
   review: ReviewDetail;
@@ -23,7 +30,16 @@ export function VerdictPanel({ review, certId, onSubmitted, onRefresh }: Verdict
   const [video, setVideo] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savedTemplates, setSavedTemplates] = useState<SavedTemplate[]>([]);
+  const [grammarBusy, setGrammarBusy] = useState(false);
+  const [templateBusy, setTemplateBusy] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    getFeedbackTemplates()
+      .then((templates) => setSavedTemplates(templates))
+      .catch(() => setSavedTemplates([]));
+  }, []);
 
   const handleClaim = async () => {
     setBusy(true);
@@ -153,18 +169,86 @@ export function VerdictPanel({ review, certId, onSubmitted, onRefresh }: Verdict
           <label className="text-[11px] uppercase tracking-wider text-muted font-bold">
             Feedback
           </label>
-          <select
-            className="bg-surface2 border border-border rounded-md text-[11px] text-text px-2 py-1 focus:outline-none focus:border-accent"
-            onChange={(e) => {
-              const t = feedbackTemplates.find((x) => x.label === e.target.value);
-              if (t) setFeedback(t.body);
-            }}
-          >
-            <option value="">Insert template...</option>
-            {feedbackTemplates.map((t) => (
-              <option key={t.label} value={t.label}>{t.label}</option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={async () => {
+                if (!feedback.trim()) return;
+                setGrammarBusy(true);
+                setError(null);
+                try {
+                  const corrected = await fixGrammar(feedback);
+                  setFeedback(corrected);
+                } catch (e) {
+                  setError(e instanceof ApiError ? e.message : 'Grammar fix failed');
+                } finally {
+                  setGrammarBusy(false);
+                }
+              }}
+              disabled={grammarBusy || !feedback.trim()}
+              className="inline-flex items-center gap-1 py-1 px-2 rounded-md border border-border bg-surface2 text-subtext text-[11px] font-bold hover:border-accent hover:text-accent transition-all disabled:opacity-50"
+            >
+              <Sparkles className="w-3 h-3" />
+              {grammarBusy ? 'Fixing…' : 'Fix grammar'}
+            </button>
+            <select
+              className="bg-surface2 border border-border rounded-md text-[11px] text-text px-2 py-1 focus:outline-none focus:border-accent"
+              value=""
+              onChange={(e) => {
+                const [source, key] = e.target.value.split(':');
+                if (source === 'builtin') {
+                  const t = BUILTIN_TEMPLATES.find((x) => x.label === key);
+                  if (t) setFeedback(t.body);
+                } else if (source === 'saved') {
+                  const t = savedTemplates.find((x) => String(x.id) === key);
+                  if (t) setFeedback(t.body);
+                }
+                e.target.value = '';
+              }}
+            >
+              <option value="">Insert template...</option>
+              {BUILTIN_TEMPLATES.length > 0 && (
+                <optgroup label="Built-in">
+                  {BUILTIN_TEMPLATES.map((t) => (
+                    <option key={`builtin:${t.label}`} value={`builtin:${t.label}`}>
+                      {t.label}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {savedTemplates.length > 0 && (
+                <optgroup label="Saved">
+                  {savedTemplates.map((t) => (
+                    <option key={`saved:${t.id}`} value={`saved:${t.id}`}>
+                      {t.label}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+            <button
+              onClick={async () => {
+                if (!feedback.trim()) return;
+                const label = window.prompt('Name this template:', feedback.trim().slice(0, 40));
+                if (!label?.trim()) return;
+                setTemplateBusy(true);
+                setError(null);
+                try {
+                  await saveFeedbackTemplate(label.trim(), feedback.trim());
+                  const updated = await getFeedbackTemplates();
+                  setSavedTemplates(updated);
+                } catch (e) {
+                  setError(e instanceof ApiError ? e.message : 'Save template failed');
+                } finally {
+                  setTemplateBusy(false);
+                }
+              }}
+              disabled={templateBusy || !feedback.trim()}
+              className="inline-flex items-center gap-1 py-1 px-2 rounded-md border border-border bg-surface2 text-subtext text-[11px] font-bold hover:border-accent hover:text-accent transition-all disabled:opacity-50"
+            >
+              {templateBusy ? <Save className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+              Save
+            </button>
+          </div>
         </div>
         <textarea
           value={feedback}
