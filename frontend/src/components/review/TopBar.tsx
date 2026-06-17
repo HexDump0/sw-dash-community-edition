@@ -15,8 +15,8 @@ export function TopBar({ onBackToGallery }: TopBarProps) {
           <ArrowLeft className="w-3.5 h-3.5" />
           Back to queue
         </button>
-        <div className="hidden sm:flex items-center gap-2 text-sm text-subtext">
-          <span className="font-bold text-text">Stardance</span>
+        <div className="hidden md:flex items-center gap-2 text-sm text-subtext truncate">
+          <span className="font-bold text-text truncate">Shipwrights Dash Community Edition™</span>
           <span className="text-muted">·</span>
           <span>Project Review</span>
         </div>

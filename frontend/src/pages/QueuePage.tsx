@@ -176,15 +176,15 @@ export function QueuePage() {
     <div className="h-screen flex flex-col bg-bg overflow-hidden">
       {/* Top bar */}
       <div className="h-14 shrink-0 bg-surface border-b border-border flex items-center justify-between px-6">
-        <div className="font-bold text-[18px] text-accent">
-          Shipwright <span className="text-text font-normal text-[13px] ml-2">Review Queue</span>
+        <div className="font-bold text-[16px] text-accent truncate">
+          Shipwrights Dash Community Edition™
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={refresh}
-            className="py-1.5 px-3.5 rounded-md border border-border bg-surface2 text-subtext text-[12px] font-bold hover:border-accent hover:text-accent transition-all"
+            className="flex items-center gap-1.5 py-1.5 px-3.5 rounded-md border border-border bg-surface2 text-subtext text-[12px] font-bold hover:border-accent hover:text-accent transition-all"
           >
-            <RefreshCw className="w-3.5 h-3.5 inline mr-1" />
+            <RefreshCw className="w-3.5 h-3.5" />
             Refresh
           </button>
           <ReviewerBadge reviewer={reviewer} />
