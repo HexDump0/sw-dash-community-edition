@@ -372,33 +372,6 @@ def parse_review(html: str, cert_id: int) -> dict[str, Any]:
     submitter = submission_meta.get("submitter", "")
     project_type = submission_meta.get("project_type", "")
 
-    # Try to find the submitter's Slack id + avatar. Stardance shows the
-    # submitter avatar inside the Submission panel; cachet avatar URLs encode
-    # the Slack id as /users/{slack_id}/r.
-    slack_user_id = ""
-    avatar_url = None
-    submission_panel = None
-    for panel in soup.select(".ship-review__panel"):
-        title_el = panel.select_one(".ship-review__panel-title")
-        if text_of(title_el) == "Submission":
-            submission_panel = panel
-            break
-    if submission_panel:
-        img = submission_panel.select_one("img")
-        if img and img.get("src"):
-            avatar_url = absolutize(img["src"])
-            m = re.search(r"cachet\.[^/]+/users/([^/]+)/r", avatar_url or "")
-            if m:
-                slack_user_id = m.group(1)
-    if not slack_user_id:
-        # Fallback: grab the first cachet avatar on the page.
-        for img in soup.find_all("img", src=re.compile(r"cachet\.[^/]+/users/([^/]+)/r")):
-            m = re.search(r"cachet\.[^/]+/users/([^/]+)/r", img.get("src", ""))
-            if m:
-                slack_user_id = m.group(1)
-                avatar_url = absolutize(img.get("src"))
-                break
-
     return {
         "id": parsed_cert_id,
         "projectTitle": title,
@@ -413,8 +386,8 @@ def parse_review(html: str, cert_id: int) -> dict[str, Any]:
         "submitterHistory": submitter_history,
         "owner": {
             "displayName": submitter,
-            "slackUserId": slack_user_id,
-            "avatarUrl": avatar_url,
+            "slackUserId": "",
+            "avatarUrl": None,
         },
         "project": {
             "projectId": 0,
@@ -622,6 +595,16 @@ def parse_project(html: str) -> dict[str, Any]:
 
     total_hours = stats.get("total hours")
 
+    # Submitter avatar + Slack id from the project page avatar.
+    owner_avatar_url = None
+    owner_slack_user_id = ""
+    avatar_img = soup.select_one("img.project-show__avatar")
+    if avatar_img and avatar_img.get("src"):
+        owner_avatar_url = absolutize(avatar_img["src"])
+        m = re.search(r"cachet\.[^/]+/users/([^/]+)/r", owner_avatar_url or "")
+        if m:
+            owner_slack_user_id = m.group(1)
+
     # Devlogs: feed cards excluding the latest ship and comment-modal clones
     devlogs: list[dict[str, Any]] = []
     seen_ids: set[int] = set()
@@ -686,6 +669,8 @@ def parse_project(html: str) -> dict[str, Any]:
         "screenshotUrl": screenshot,
         "totalHours": total_hours,
         "devlogs": devlogs,
+        "ownerAvatarUrl": owner_avatar_url,
+        "ownerSlackUserId": owner_slack_user_id,
     }
 
 

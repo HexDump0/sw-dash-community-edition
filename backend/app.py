@@ -387,6 +387,10 @@ async def get_review(cert_id: int, session: stardance.ReviewerSession = Depends(
                 })
                 parsed["totalHours"] = project_data.get("totalHours")
                 parsed["devlogs"] = project_data.get("devlogs") or []
+                if project_data.get("ownerAvatarUrl"):
+                    parsed["owner"]["avatarUrl"] = project_data["ownerAvatarUrl"]
+                if project_data.get("ownerSlackUserId"):
+                    parsed["owner"]["slackUserId"] = project_data["ownerSlackUserId"]
             except stardance.StardanceError:
                 parsed["project"]["stardanceUrl"] = absolutize(project_path)
 
