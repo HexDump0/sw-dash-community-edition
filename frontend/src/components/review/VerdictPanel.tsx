@@ -72,18 +72,18 @@ export function VerdictPanel({ review, certId, onSubmitted, onRefresh }: Verdict
   if (!review.claim.heldByMe) {
     return (
       <div className="p-5">
+        <button
+          onClick={handleClaim}
+          disabled={busy}
+          className="action-btn action-btn--large action-btn--primary w-full mb-3 disabled:opacity-50"
+        >
+          {busy ? 'Claiming…' : 'Claim this review'}
+        </button>
         <div className="flex items-center justify-between p-3 rounded-lg bg-yellow-subtle border border-yellow/30">
           <span className="flex items-center gap-2 text-[13px] font-bold text-yellow">
             <Unlock className="w-4 h-4" />
             You don&apos;t hold the claim
           </span>
-          <button
-            onClick={handleClaim}
-            disabled={busy}
-            className="action-btn action-btn--small action-btn--primary disabled:opacity-50"
-          >
-            {busy ? 'Claiming…' : 'Claim this review'}
-          </button>
         </div>
         {error && <div className="mt-3 text-[12px] text-red bg-red-subtle p-2 rounded border border-red/30">{error}</div>}
       </div>

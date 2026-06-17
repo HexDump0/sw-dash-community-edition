@@ -36,6 +36,11 @@ export function ReviewHistory({ timeline }: ReviewHistoryProps) {
               <div className="text-[13px] text-text font-medium truncate">
                 {event.title}
               </div>
+              {event.reviewerName && (
+                <div className="text-[11px] text-muted mt-0.5">
+                  by {event.reviewerName}
+                </div>
+              )}
               {event.feedback && (
                 <p className="text-[12px] text-subtext mt-1 line-clamp-2">
                   {event.feedback}

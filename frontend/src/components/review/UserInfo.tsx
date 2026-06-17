@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Copy, Check, User, ExternalLink } from 'lucide-react';
+import { Copy, Check, User, Star } from 'lucide-react';
 import type { ReviewOwner, ReviewProject } from '../../types';
 import { GitHubIcon } from '../icons/GitHubIcon';
 
@@ -127,6 +127,17 @@ export function UserInfo({ user, project }: UserInfoProps) {
             README ↗
           </a>
         )}
+        {project.stardanceUrl && (
+          <a
+            href={project.stardanceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1 py-2 px-2 rounded-md border border-border bg-surface2 text-subtext text-[13px] font-bold hover:border-accent hover:text-accent transition-all whitespace-nowrap"
+          >
+            <Star className="w-3.5 h-3.5" />
+            StarDance ↗
+          </a>
+        )}
       </div>
 
       <div className="p-3 rounded-md border border-border bg-bg mb-3">
@@ -141,17 +152,6 @@ export function UserInfo({ user, project }: UserInfoProps) {
         </div>
       </div>
 
-      {project.stardanceUrl && (
-        <a
-          href={project.stardanceUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-center gap-1.5 w-full py-2 px-3 rounded-md border border-border bg-surface2 text-subtext text-[13px] font-bold hover:border-accent hover:text-accent transition-all"
-        >
-          View on Stardance
-          <ExternalLink className="w-3.5 h-3.5" />
-        </a>
-      )}
     </div>
   );
 }

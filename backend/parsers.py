@@ -10,6 +10,7 @@ text into the enum used by the frontend.
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from typing import Any
 from urllib.parse import urljoin
 
@@ -338,6 +339,35 @@ def parse_review(html: str, cert_id: int) -> dict[str, Any]:
             })
         submitter_history = {"summary": summary, "recent": cards}
 
+    # Build a timeline the frontend can render from the submitter history panel.
+    timeline: list[dict[str, Any]] = []
+    if submitter_history:
+        for card in submitter_history.get("recent", []):
+            meta = (card.get("title") or "").replace("\n", "·")
+            parts = [p.strip() for p in meta.split("·") if p.strip()]
+            project_title = parts[0] if parts else (card.get("title") or "")
+            reviewer_name = ""
+            if len(parts) > 1 and parts[-1].lower().startswith("by "):
+                reviewer_name = parts[-1][3:].strip()
+            raw_date = card.get("date") or ""
+            iso_date = ""
+            if raw_date and raw_date != "—":
+                try:
+                    dt = datetime.strptime(f"{raw_date} {datetime.now().year}", "%b %d %Y")
+                    if dt.date() > datetime.now().date():
+                        dt = dt.replace(year=dt.year - 1)
+                    iso_date = dt.date().isoformat()
+                except ValueError:
+                    iso_date = raw_date
+            timeline.append({
+                "id": card.get("id") or 0,
+                "title": project_title,
+                "status": card.get("status") or "pending",
+                "date": iso_date,
+                "reviewerName": reviewer_name,
+                "feedback": card.get("feedback") or "",
+            })
+
     # Best-effort submission meta
     submitter = submission_meta.get("submitter", "")
     project_type = submission_meta.get("project_type", "")
@@ -375,7 +405,7 @@ def parse_review(html: str, cert_id: int) -> dict[str, Any]:
         "totalHours": None,
         "joeFraudPassed": None,
         "joeTrustScore": None,
-        "timeline": [],
+        "timeline": timeline,
         "devlogs": [],
     }
 

@@ -11,8 +11,7 @@ import { VerdictPanel } from '../components/review/VerdictPanel';
 import { ProjectInfoPanel } from '../components/review/ProjectInfoPanel';
 import { ReadmePanel } from '../components/review/ReadmePanel';
 import { SwReviewerPanel } from '../components/review/SwReviewerPanel';
-import { ReviewChecklist } from '../components/review/ReviewChecklist';
-import type { ReviewDetail, GitHubRepo, NotesState, ChecklistState } from '../types';
+import type { ReviewDetail, GitHubRepo, NotesState } from '../types';
 import { usePollingData } from '../lib/usePollingData';
 import { ApiError, getReview, getGitHub, getReadme } from '../lib/api';
 
@@ -30,12 +29,11 @@ export function ReviewPage() {
   const [review, setReview] = useState<ReviewDetail | null>(null);
   const [github, setGithub] = useState<GitHubRepo | null>(null);
   const [notes, setNotes] = useState<NotesState>({ projectNote: '', userNote: '' });
-  const [checklist, setChecklist] = useState<ChecklistState>({ checkedItems: [] });
   const [readme, setReadme] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('readme');
 
   const reviewFetcher = useCallback(async () => {
-    let reviewData: ReviewDetail & { notes: NotesState; checklist: ChecklistState };
+    let reviewData: ReviewDetail & { notes: NotesState; };
     try {
       reviewData = await getReview(certId);
     } catch (e) {
@@ -46,7 +44,6 @@ export function ReviewPage() {
     }
     setReview(reviewData);
     setNotes(reviewData.notes || { projectNote: '', userNote: '' });
-    setChecklist(reviewData.checklist || { checkedItems: [] });
 
     if (reviewData.project?.readmeUrl) {
       getReadme(reviewData.project.readmeUrl)
@@ -97,7 +94,6 @@ export function ReviewPage() {
           className="bg-surface border-r border-border overflow-y-auto"
         >
           <UserInfo user={review.owner} project={review.project} />
-          <ReviewChecklist initial={checklist} certId={certId} onChange={setChecklist} />
           <NotesSection title="Notes — Project" notes={notes} certId={certId} field="projectNote" onChange={setNotes} />
           <NotesSection title="Notes — User" notes={notes} certId={certId} field="userNote" onChange={setNotes} />
           <ReviewHistory timeline={review.timeline} />
