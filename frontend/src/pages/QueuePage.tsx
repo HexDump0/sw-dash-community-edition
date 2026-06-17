@@ -38,7 +38,7 @@ interface Reviewer {
 
 function cachetAvatarUrl(slackUserId: string | null): string | null {
   if (!slackUserId) return null;
-  return `https://cachet.hackclub.com/users/${slackUserId}/r`;
+  return `https://cachet.dunkirk.sh/users/${slackUserId}/r`;
 }
 
 function getStoredSort(): string {

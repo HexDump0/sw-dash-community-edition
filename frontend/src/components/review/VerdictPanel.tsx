@@ -86,7 +86,7 @@ export function VerdictPanel({ review, certId, onSubmitted, onRefresh }: Verdict
           <div className="flex items-center p-3 mb-5 rounded-lg bg-yellow-subtle border border-yellow/30">
             <span className="flex items-center gap-2 text-[13px] font-bold text-yellow">
               <Unlock className="w-4 h-4" />
-              You don&apos;t hold the claim — submit will claim first
+              You don&apos;t hold the claim
             </span>
           </div>
         </>
