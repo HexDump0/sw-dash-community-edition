@@ -127,6 +127,24 @@ def load_reviewer_session(slack_user_id: str) -> ReviewerSession | None:
     }
 
 
+def load_reviewer_session_by_cookie(cookie: str) -> ReviewerSession | None:
+    with _LOCK:
+        row = _CONN.execute(
+            "SELECT slack_user_id, name, cookie_value, csrf_token, updated_at "
+            "FROM reviewer_sessions WHERE cookie_value = ?",
+            (cookie,),
+        ).fetchone()
+    if not row:
+        return None
+    return {
+        "slackUserId": row["slack_user_id"],
+        "name": row["name"],
+        "cookie": row["cookie_value"],
+        "csrfToken": row["csrf_token"] or None,
+        "updatedAt": row["updated_at"],
+    }
+
+
 def delete_reviewer_session(slack_user_id: str) -> None:
     with _LOCK:
         _CONN.execute("DELETE FROM reviewer_sessions WHERE slack_user_id = ?", (slack_user_id,))

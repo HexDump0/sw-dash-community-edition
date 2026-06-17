@@ -1,4 +1,4 @@
-import type { QueueData, ReviewDetail, GitHubRepo, NotesState, ChecklistState, MyStats } from '../types';
+import type { QueueData, ReviewDetail, GitHubRepo, NotesState, ChecklistState, MyStats, ReviewStatus } from '../types';
 
 const TOKEN_KEY = 'stardance.authToken';
 
@@ -197,4 +197,12 @@ export async function saveFeedbackTemplate(label: string, body: string): Promise
     body: JSON.stringify({ label, body }),
   });
   return data.template;
+}
+
+export async function getReviewStatus(certId: number): Promise<ReviewStatus> {
+  return fetchJson<ReviewStatus>(`/api/reviews/${certId}/status`);
+}
+
+export async function requestReview(certId: number): Promise<ReviewStatus> {
+  return fetchJson<ReviewStatus>(`/api/reviews/${certId}`, { method: 'POST' });
 }

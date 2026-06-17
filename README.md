@@ -18,6 +18,9 @@ backend. No more fixture files for normal operation.
 - **Multi-reviewer auth** — each reviewer logs in by pasting their own curl
   command; sessions are stored keyed by Slack id so 10–15 reviewers can share
   one backend without leaking cookies.
+- **AI reviewer integration** — the separate `sw-reviewer` service can be
+  reached through the dash backend. The review page shows live review status
+  and lets reviewers enqueue a manual AI review.
 - **Theme** — Catppuccin Mocha by default, implemented through semantic CSS
   variables so swapping themes later is just changing variable values.
 
@@ -42,6 +45,8 @@ You need two terminals.
 cd community-edition
 .venv/bin/pip install -r backend/requirements.txt
 export GITHUB_TOKEN='<optional GitHub personal access token>'
+export REVIEWER_BASE_URL='http://127.0.0.1:4391'
+export REVIEWER_API_KEY='<shared secret with sw-reviewer>'
 .venv/bin/uvicorn backend.app:app --reload --port 8000
 ```
 
@@ -111,16 +116,18 @@ Key routes:
 | `PATCH` | `/api/review/:id` | Submit verdict (multipart, optional video) |
 | `GET` | `/api/mystats` | Reviewer stats + history |
 | `GET` | `/api/github?repoUrl=…` | Live GitHub repo data (cached 5 min) |
+| `GET` | `/api/reviews/:id/status` | sw-reviewer job status |
+| `POST` | `/api/reviews/:id` | Request a manual AI review |
 | `PUT` | `/api/notes/:id` | Save reviewer notes |
 | `PUT` | `/api/checklist/:id` | Save checklist state |
 
 ## What's not in this phase
 
-- AI sw-reviewer PDF generation (out of scope for this milestone).
+- AI sw-reviewer result display inside the dash (status + request is wired; the
+  full PDF/verdict lives in Slack).
 
 ## Next steps
 
-- AI sw-reviewer PDF generation.
 - Project-page scraping for richer review detail (screenshot, real project id,
   project type on the review page, owner slack id).
 - My Stats dedicated page / payout history improvements.

@@ -164,3 +164,14 @@ export interface MyStats {
     date: string;
   }[];
 }
+
+export interface ReviewStatus {
+  ship_id: number;
+  status: 'not_started' | 'in_progress' | 'done';
+  queued_at?: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  error?: string | null;
+  result?: { ok: boolean; error?: string; pdf_ready?: boolean } | null;
+  pdf_ready?: boolean;
+}

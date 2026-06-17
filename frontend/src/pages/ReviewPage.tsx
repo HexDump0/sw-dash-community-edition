@@ -21,7 +21,7 @@ const TABS = [
   { id: 'readme', label: 'README' },
   { id: 'project', label: 'Project' },
   { id: 'github', label: 'GitHub' },
-  { id: 'ai', label: 'AI Review' },
+  { id: 'ai', label: 'sw-clanker' },
 ];
 
 export function ReviewPage() {
@@ -155,7 +155,7 @@ function ReviewPageContent() {
                 repoUrl={review.project.repoUrl}
               />
             )}
-            {activeTab === 'ai' && <SwReviewerPanel />}
+            {activeTab === 'ai' && <SwReviewerPanel certId={certId} />}
           </div>
         </div>
 

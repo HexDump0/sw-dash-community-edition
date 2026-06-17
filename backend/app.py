@@ -18,13 +18,14 @@ from typing import Any, Optional
 from bs4 import BeautifulSoup
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+import httpx
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from . import db
 from . import github
 from . import stardance
-from .config import BASE, COOKIE_NAME, env
+from .config import BASE, COOKIE_NAME, env, reviewer_api_key, reviewer_base_url
 from .parsers import (
     absolutize,
     extract_review_id_from_url,
@@ -73,23 +74,65 @@ def _extract_cookie(raw: str) -> str | None:
     return None
 
 
-async def get_current_reviewer(request: Request) -> stardance.ReviewerSession:
-    auth = request.headers.get(AUTHORIZATION_HEADER, "")
-    if not auth.startswith(BEARER_PREFIX):
-        raise HTTPException(status_code=401, detail={"error": "unauthenticated", "message": "Missing auth token"})
-    token = auth[len(BEARER_PREFIX):].strip()
-    slack_user_id = db.lookup_auth_token(token)
-    if not slack_user_id:
-        raise HTTPException(status_code=401, detail={"error": "unauthenticated", "message": "Invalid auth token"})
-    session = db.load_reviewer_session(slack_user_id)
-    if not session:
-        raise HTTPException(status_code=401, detail={"error": "unauthenticated", "message": "Reviewer session not found"})
-    return stardance.ReviewerSession(
-        slack_user_id=session["slackUserId"],
-        name=session["name"],
-        cookie=session["cookie"],
-        csrf_token=session.get("csrfToken"),
+def _extract_cookie_from_header(cookie_header: str) -> str | None:
+    m = re.search(r"(?:^|;\\s*)" + re.escape(COOKIE_NAME) + r"=([^;]+)", cookie_header)
+    return m.group(1) if m else None
+
+
+async def _session_from_cookie(cookie: str) -> stardance.ReviewerSession:
+    """Validate a raw Stardance cookie and return a session (creating it if needed)."""
+    session = db.load_reviewer_session_by_cookie(cookie)
+    if session:
+        return stardance.ReviewerSession(
+            slack_user_id=session["slackUserId"],
+            name=session["name"],
+            cookie=session["cookie"],
+            csrf_token=session.get("csrfToken"),
+        )
+    info = await _validate_cookie(cookie)
+    reviewer = info["reviewer"]
+    db.save_reviewer_session(
+        reviewer["slackUserId"],
+        reviewer["name"],
+        cookie,
+        info.get("csrfToken"),
     )
+    return stardance.ReviewerSession(
+        slack_user_id=reviewer["slackUserId"],
+        name=reviewer["name"],
+        cookie=cookie,
+        csrf_token=info.get("csrfToken"),
+    )
+
+
+async def get_current_reviewer(request: Request) -> stardance.ReviewerSession:
+    # 1) Prefer bearer tokens issued by the frontend login flow.
+    auth = request.headers.get(AUTHORIZATION_HEADER, "")
+    if auth.startswith(BEARER_PREFIX):
+        token = auth[len(BEARER_PREFIX):].strip()
+        slack_user_id = db.lookup_auth_token(token)
+        if slack_user_id:
+            session = db.load_reviewer_session(slack_user_id)
+            if session:
+                return stardance.ReviewerSession(
+                    slack_user_id=session["slackUserId"],
+                    name=session["name"],
+                    cookie=session["cookie"],
+                    csrf_token=session.get("csrfToken"),
+                )
+
+    # 2) Fall back to a raw Stardance session cookie. This lets the
+    #    sw-reviewer service use the dash APIs with its own cookie without
+    #    needing a frontend bearer token.
+    cookie_header = request.headers.get("Cookie", "")
+    cookie = _extract_cookie_from_header(cookie_header)
+    if cookie:
+        try:
+            return await _session_from_cookie(cookie)
+        except HTTPException:
+            raise
+
+    raise HTTPException(status_code=401, detail={"error": "unauthenticated", "message": "Missing or invalid auth"})
 
 
 async def _validate_cookie(cookie: str) -> dict[str, Any]:
@@ -603,3 +646,61 @@ async def health() -> dict[str, Any]:
 @app.get("/api/cached-reviews")
 async def cached_reviews() -> dict[str, Any]:
     return {"reviews": db.load_cached_reviews()}
+
+
+# ----- sw-reviewer proxy ----------------------------------------------------
+
+
+async def _proxy_to_reviewer(method: str, path: str) -> JSONResponse:
+    key = reviewer_api_key()
+    if not key:
+        raise HTTPException(status_code=503, detail={"error": "reviewer_not_configured"})
+    url = f"{reviewer_base_url()}{path}"
+    headers = {"X-Reviewer-Key": key}
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.request(method, url, headers=headers)
+    try:
+        body = resp.json()
+    except Exception:
+        body = {"ok": False, "raw": resp.text}
+    return JSONResponse(body, status_code=resp.status_code)
+
+
+@app.get("/api/reviews/{cert_id}/status")
+async def get_review_status(
+    cert_id: int,
+    session: stardance.ReviewerSession = Depends(get_current_reviewer),
+) -> JSONResponse:
+    return await _proxy_to_reviewer("GET", f"/api/reviews/{cert_id}/status")
+
+
+@app.post("/api/reviews/{cert_id}")
+async def request_review(
+    cert_id: int,
+    session: stardance.ReviewerSession = Depends(get_current_reviewer),
+) -> JSONResponse:
+    return await _proxy_to_reviewer("POST", f"/api/reviews/{cert_id}")
+
+
+@app.get("/api/reviews/{cert_id}/pdf")
+async def get_review_pdf(
+    cert_id: int,
+    session: stardance.ReviewerSession = Depends(get_current_reviewer),
+):
+    key = reviewer_api_key()
+    if not key:
+        raise HTTPException(status_code=503, detail={"error": "reviewer_not_configured"})
+    url = f"{reviewer_base_url()}/api/reviews/{cert_id}/pdf"
+    headers = {"X-Reviewer-Key": key}
+
+    async def _stream():
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            async with client.stream("GET", url, headers=headers) as resp:
+                async for chunk in resp.aiter_raw():
+                    yield chunk
+
+    return StreamingResponse(
+        _stream(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="review_{cert_id}.pdf"'},
+    )
