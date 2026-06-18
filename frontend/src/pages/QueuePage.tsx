@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+
 import {
   Search,
   Clock,
@@ -319,8 +319,8 @@ function QueuePageContent() {
 
           {viewMode === 'list' && (
             <div className="flex flex-col gap-2">
-              {filteredShips.map((ship, i) => (
-                <QueueRow key={ship.id} ship={ship} index={i} />
+              {filteredShips.map((ship) => (
+                <QueueRow key={ship.id} ship={ship} />
               ))}
               {filteredShips.length === 0 && (
                 <p className="text-center text-subtext py-12">No projects match your filters.</p>
@@ -330,8 +330,8 @@ function QueuePageContent() {
 
           {viewMode === 'grid' && (
             <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] content-start gap-4">
-              {filteredShips.map((ship, i) => (
-                <GalleryCard key={ship.id} ship={ship} index={i} />
+              {filteredShips.map((ship) => (
+                <GalleryCard key={ship.id} ship={ship} />
               ))}
               {filteredShips.length === 0 && (
                 <p className="col-span-full text-center text-subtext py-12">No projects match your filters.</p>
@@ -424,7 +424,7 @@ function ViewToggleButton({
   );
 }
 
-function QueueRow({ ship, index }: { ship: QueueShip; index: number }) {
+function QueueRow({ ship }: { ship: QueueShip }) {
   const waitingHours = ship.waitingHours ?? 7 * 24;
   const isStale = waitingHours >= 72;
   const isMedium = waitingHours >= 24 && waitingHours < 72;
@@ -432,15 +432,10 @@ function QueueRow({ ship, index }: { ship: QueueShip; index: number }) {
   const queuedAt = new Date(now.getTime() - waitingHours * 3600000).toISOString();
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.02 }}
+    <Link
+      to={`/review/${ship.id}`}
+      className="group flex items-center justify-between gap-4 p-4 bg-surface border border-border rounded-lg cursor-pointer transition-all duration-150 hover:border-accent hover:bg-surface2"
     >
-      <Link
-        to={`/review/${ship.id}`}
-        className="group flex items-center justify-between gap-4 p-4 bg-surface border border-border rounded-lg cursor-pointer transition-all duration-150 hover:border-accent hover:bg-surface2"
-      >
         <div className="flex items-center gap-4 min-w-0">
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-2">
@@ -492,12 +487,11 @@ function QueueRow({ ship, index }: { ship: QueueShip; index: number }) {
             </span>
           )}
         </div>
-      </Link>
-    </motion.div>
+    </Link>
   );
 }
 
-function GalleryCard({ ship, index }: { ship: QueueShip; index: number }) {
+function GalleryCard({ ship }: { ship: QueueShip }) {
   const waitingHours = ship.waitingHours ?? 7 * 24;
   const isStale = waitingHours >= 72;
   const isMedium = waitingHours >= 24 && waitingHours < 72;
@@ -505,15 +499,10 @@ function GalleryCard({ ship, index }: { ship: QueueShip; index: number }) {
   const queuedAt = new Date(now.getTime() - waitingHours * 3600000).toISOString();
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.03 }}
+    <Link
+      to={`/review/${ship.id}`}
+      className="flex flex-col gap-1.5 p-5 bg-surface border border-border rounded-lg cursor-pointer transition-all duration-150 hover:border-accent hover:bg-surface2 h-full"
     >
-      <Link
-        to={`/review/${ship.id}`}
-        className="flex flex-col gap-1.5 p-5 bg-surface border border-border rounded-lg cursor-pointer transition-all duration-150 hover:border-accent hover:bg-surface2 h-full"
-      >
         <div className="flex items-start justify-between gap-2">
           <p className="text-[15px] font-semibold text-text leading-snug">{ship.projectTitle}</p>
           {ship.claimState === 'locked' && (
@@ -552,7 +541,6 @@ function GalleryCard({ ship, index }: { ship: QueueShip; index: number }) {
           )}
         </div>
       </Link>
-    </motion.div>
   );
 }
 
