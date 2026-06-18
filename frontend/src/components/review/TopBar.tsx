@@ -38,7 +38,7 @@ export function TopBar({ onBackToGallery }: TopBarProps) {
       <div className="relative">
         <button
           onClick={() => setPopupOpen((v) => !v)}
-          className="flex items-center gap-2 pl-2 border-l border-border rounded-md px-1.5 py-1 hover:bg-surface2/60 transition-colors"
+          className="flex items-center gap-2 pl-2 rounded-md px-1.5 py-1 hover:bg-surface2/60 transition-colors"
         >
           <span className="hidden sm:block text-[13px] text-text font-semibold">
             {reviewer?.name || 'Log in'}
