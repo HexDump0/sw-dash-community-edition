@@ -62,7 +62,7 @@ export function UserInfo({ user, project }: UserInfoProps) {
                 rel="noopener noreferrer"
                 className="hover:text-accent transition-colors"
               >
-                DM on Slack ↗
+                DM ↗
               </a>
             ) : null}
             {user.slackUserId && (

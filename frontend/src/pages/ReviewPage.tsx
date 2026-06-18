@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { TopBar } from '../components/review/TopBar';
@@ -60,6 +60,7 @@ function ReviewPageContent() {
   const [github, setGithub] = useState<GitHubRepo | null>(null);
   const [notes, setNotes] = useState<NotesState>({ projectNote: '', userNote: '' });
   const [readme, setReadme] = useState<string | null>(null);
+  const [readmeLoading, setReadmeLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('readme');
 
   const reviewFetcher = useCallback(async () => {
@@ -78,13 +79,6 @@ function ReviewPageContent() {
     setReview(reviewData);
     setNotes(reviewData.notes || { projectNote: '', userNote: '' });
 
-    if (reviewData.project?.readmeUrl) {
-      getReadme(reviewData.project.readmeUrl)
-        .then((r) => setReadme(r?.content || null))
-        .catch(() => setReadme(null));
-    } else {
-      setReadme(null);
-    }
     if (reviewData.project?.repoUrl) {
       getGitHub(reviewData.project.repoUrl)
         .then((g) => setGithub(g))
@@ -96,6 +90,20 @@ function ReviewPageContent() {
   }, [certId]);
 
   const { loading, error, refresh: load } = usePollingData(reviewFetcher, [certId], 30000);
+
+  useEffect(() => {
+    const url = review?.project?.readmeUrl;
+    if (!url) {
+      setReadme(null);
+      setReadmeLoading(false);
+      return;
+    }
+    setReadmeLoading(true);
+    getReadme(url)
+      .then((r) => setReadme(r?.content ?? null))
+      .catch(() => setReadme(null))
+      .finally(() => setReadmeLoading(false));
+  }, [review?.project?.readmeUrl]);
 
   if (loading || !review) {
     return (
@@ -136,7 +144,7 @@ function ReviewPageContent() {
         <div className="flex flex-col overflow-hidden bg-bg">
           <TabBar tabs={TABS} activeTab={activeTab} onTabChange={setActiveTab} />
           <div className="flex-1 overflow-hidden relative">
-            {activeTab === 'readme' && <ReadmePanel content={readme} readmeUrl={review.project.readmeUrl} loading={readme === null && !!review.project.readmeUrl} />}
+            {activeTab === 'readme' && <ReadmePanel content={readme} readmeUrl={review.project.readmeUrl} loading={readmeLoading} />}
             {activeTab === 'project' && (
               <ProjectInfoPanel
                 project={review.project}
