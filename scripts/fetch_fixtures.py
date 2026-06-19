@@ -98,39 +98,11 @@ def parse_queue() -> dict:
         if period in leaderboards:
             leaderboards[period] = rows
 
-    # Ships table
-    ships = []
-    for row in soup.select(".ship-queue__table tbody tr"):
-        title_el = row.select_one(".ship-queue__project-title")
-        open_link = row.select_one(".ship-queue__cell-action a")
-        ship_id = parse_int(open_link.get("href")) if open_link else None
-        if not ship_id:
-            continue
-
-        claim_flag = row.select_one(".ship-queue__claim-flag")
-        claim_state = None
-        if claim_flag:
-            classes = claim_flag.get("class", [])
-            if "ship-queue__claim-flag--open" in classes:
-                claim_state = "open"
-            elif "ship-queue__claim-flag--locked" in classes:
-                claim_state = "locked"
-
-        status_pill = row.select_one(".status-pill")
-        ships.append({
-            "id": ship_id,
-            "projectTitle": text_of(title_el),
-            "projectShipIdLabel": text_of(row.select_one(".ship-queue__project-id")),
-            "ownerDisplayName": text_of(row.select_one(".ship-queue__project-meta span")).replace("by ", ""),
-            "ageText": text_of(row.select_one(".ship-queue__project-meta")),
-            "status": _status_from_pill(status_pill),
-            "hasBadReview": "bad review" in text_of(status_pill).lower(),
-            "claimState": claim_state,
-            "claimReviewerDisplayName": text_of(row.select_one(".ship-queue__claim-by")),
-            "claimExpiresAt": row.select_one(".ship-queue__countdown").get("data-expires-at") if row.select_one(".ship-queue__countdown") else None,
-            "isOwnProject": bool(row.select_one(".ship-queue__type-tag--own")),
-            "projectType": text_of(row.select_one(".ship-queue__type-tag:not(.ship-queue__type-tag--own)")),
-        })
+    # Ships table — delegate to the shared backend parser so this fixture
+    # generator never drifts from the live parser again (the table markup has
+    # changed multiple times; see backend/parsers.py `_parse_claim_row`).
+    from backend.parsers import parse_queue as _parse_queue_html
+    ships = _parse_queue_html(soup.prettify())["ships"]
 
     return {
         "stats": stats,

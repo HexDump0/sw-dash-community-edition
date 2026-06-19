@@ -49,10 +49,29 @@ def parse_csrf(html: str) -> str | None:
 
 
 def age_hours_from_text(age_text: str) -> int | None:
-    """Parse strings like "6 days old", "2 hours old", "1 minute old"."""
+    """Parse wait/age text into a best-effort hour count.
+
+    Handles the full word forms ("6 days old", "2 hours old", "1 minute old")
+    and the compact wait-badge forms Stardance now uses ("9d", "6h", "45m").
+    """
     if not age_text:
         return None
-    m = re.search(r"(\d+)\s*(minute|minutes|hour|hours|day|days|week|weeks|month|months)", age_text.lower())
+    text = age_text.lower()
+    # Compact form: ``9d`` / ``6h`` / ``45m`` (no space, single-letter unit).
+    m = re.search(r"(\d+)\s*(m|h|d|w)\b", text)
+    if m:
+        n = int(m.group(1))
+        unit = m.group(2)
+        if unit == "m":
+            return max(0, n // 60)
+        if unit == "h":
+            return n
+        if unit == "d":
+            return n * 24
+        if unit == "w":
+            return n * 24 * 7
+    # Full-word form: ``6 days old``, ``2 hours old`` ...
+    m = re.search(r"(\d+)\s*(minute|minutes|hour|hours|day|days|week|weeks|month|months)", text)
     if not m:
         return None
     n = int(m.group(1))
@@ -77,11 +96,36 @@ def parse_repo_owner_repo(repo_url: str) -> tuple[str, str]:
     return "unknown", "repo"
 
 
-def _parse_claim_row(row) -> dict[str, Any]:
-    title_el = row.select_one(".ship-queue__project-title")
+def _parse_ship_id(row) -> int | None:
+    """Extract the ship id from a queue row.
+
+    Stardance's queue table has been restructured a couple of times:
+      - originally an ``Open`` link in ``.ship-queue__cell-action a[href]``
+      - later a ``#<id>`` label in ``.ship-queue__project-id`` plus a
+        clickable ``<tr onclick="window.location='.../ship/<id>'">``
+      - and a ``.ship-queue__cards`` mobile layout with the same id label.
+    Try each source in turn so the parser survives either markup.
+    """
+    # 1) Dedicated ``#448`` id label.
+    id_label = row.select_one(".ship-queue__project-id")
+    if id_label:
+        ship_id = parse_int(text_of(id_label))
+        if ship_id:
+            return ship_id
+    # 2) Clickable row: ``onclick="window.location='/admin/certification/ship/448'"``.
+    onclick = row.get("onclick") or ""
+    m = re.search(r"/admin/certification/ship/(\d+)", onclick)
+    if m:
+        return int(m.group(1))
+    # 3) Legacy explicit ``Open`` action link.
     open_link = row.select_one(".ship-queue__cell-action a")
     href = open_link.get("href") if open_link else None
-    ship_id = parse_int(href) if href else None
+    return parse_int(href) if href else None
+
+
+def _parse_claim_row(row) -> dict[str, Any]:
+    title_el = row.select_one(".ship-queue__project-title")
+    ship_id = _parse_ship_id(row)
 
     claim_flag = row.select_one(".ship-queue__claim-flag")
     claim_state: str | None = None
@@ -94,24 +138,46 @@ def _parse_claim_row(row) -> dict[str, Any]:
 
     status_pill = row.select_one(".status-pill")
 
-    # The "by <name>" text is the first <span> inside .ship-queue__project-meta
-    owner_span = row.select_one(".ship-queue__project-meta span")
-    owner_name = text_of(owner_span).replace("by ", "").strip()
+    # Owner name. New layout has a dedicated ``.ship-queue__cell-author`` cell;
+    # old layout embedded it as ``by <name>`` inside ``.ship-queue__project-meta``.
+    owner_cell = row.select_one(".ship-queue__cell-author")
+    if owner_cell:
+        owner_name = text_of(owner_cell)
+    else:
+        owner_span = row.select_one(".ship-queue__project-meta span")
+        owner_name = text_of(owner_span).replace("by ", "").strip()
 
-    # Find the age-text span ("6 days old", "2 hours old", ...)
-    age_text = ""
-    for span in row.select(".ship-queue__project-meta span"):
-        t = text_of(span)
-        if re.search(r"\b(minute|hour|day|week|month)", t, re.IGNORECASE):
-            age_text = t
-            break
-    is_own = bool(row.select_one(".ship-queue__type-tag--own"))
-    type_tag = row.select_one(".ship-queue__type-tag:not(.ship-queue__type-tag--own)")
+    # Age text. New layout shows a compact wait badge (``9d``); old layout had a
+    # ``6 days old`` span inside ``.ship-queue__project-meta``.
+    wait_badge = row.select_one(".ship-queue__wait-badge")
+    if wait_badge:
+        age_text = text_of(wait_badge)
+    else:
+        age_text = ""
+        for span in row.select(".ship-queue__project-meta span"):
+            t = text_of(span)
+            if re.search(r"\b(minute|hour|day|week|month)", t, re.IGNORECASE):
+                age_text = t
+                break
+    row_classes = row.get("class", []) or []
+    is_own = (
+        "ship-queue__row--own" in row_classes
+        or bool(row.select_one(".ship-queue__type-tag--own"))
+    )
+    # Project type moved to its own ``.ship-queue__cell-type`` cell; in the old
+    # layout it lived as a tag inside the project cell.
+    type_cell = row.select_one(".ship-queue__cell-type")
+    type_tag = (
+        type_cell.select_one(".ship-queue__type-tag")
+        if type_cell
+        else row.select_one(".ship-queue__type-tag:not(.ship-queue__type-tag--own)")
+    )
     project_type = text_of(type_tag) if type_tag else ""
 
     countdown = row.select_one(".ship-queue__countdown")
     claim_expires = countdown.get("data-expires-at") if countdown else None
 
+    status_classes = (status_pill.get("class", []) if status_pill else []) or []
     return {
         "id": ship_id,
         "projectTitle": text_of(title_el),
@@ -119,7 +185,9 @@ def _parse_claim_row(row) -> dict[str, Any]:
         "ownerDisplayName": owner_name,
         "ageText": age_text,
         "status": status_from_pill(status_pill),
-        "hasBadReview": "bad review" in text_of(status_pill).lower(),
+        # The "Bad Review" pill text was renamed to "YSWS Return" on some
+        # pages, so key off the stable ``status-pill--returned`` class instead.
+        "hasBadReview": "status-pill--returned" in status_classes,
         "claimState": claim_state,
         "claimReviewerDisplayName": text_of(row.select_one(".ship-queue__claim-by")),
         "claimExpiresAt": claim_expires,
@@ -260,6 +328,13 @@ def parse_review(html: str, cert_id: int) -> dict[str, Any]:
     submission_meta: dict[str, str] = {}
     returned_alert: dict[str, Any] | None = None
 
+    # The review page merged Description / AI Declaration / Links into a single
+    # "Submission" panel as <dt>/<dd> rows. Older markup had separate panels for
+    # each. Walk the rows once and dispatch by label so both layouts work; rows
+    # that aren't recognised fall through into ``submission_meta``.
+    def _link_label(raw: str) -> str:
+        return raw.strip().lower().replace(" ", "_")
+
     for panel in soup.select(".ship-review__panel, .ship-review__return-alert"):
         title_el = panel.select_one(".ship-review__panel-title, .ship-review__return-alert-title")
         panel_title = text_of(title_el)
@@ -269,21 +344,55 @@ def parse_review(html: str, cert_id: int) -> dict[str, Any]:
                 "by": text_of(panel.select_one(".ship-review__return-alert-meta")).replace("by ", ""),
                 "reason": text_of(panel.select_one(".ship-review__return-alert-reason")),
             }
-        elif panel_title == "Description":
+            continue
+
+        # Legacy separate panels (pre-merge markup).
+        if panel_title == "Description":
             description = text_of(panel.select_one(".ship-review__description"))
-        elif panel_title == "AI Declaration":
+            continue
+        if panel_title == "AI Declaration":
             ai_declaration = text_of(panel.select_one(".ship-review__description"))
             if not ai_declaration or "no ai declaration" in ai_declaration.lower():
                 ai_declaration = ""
-        elif panel_title == "Links":
+            continue
+        if panel_title == "Links":
             for dt, dd in zip(panel.select("dt"), panel.select("dd")):
-                key = text_of(dt).lower()
+                key = _link_label(text_of(dt))
                 a = dd.select_one("a")
                 links[key] = a.get("href") if a else text_of(dd)
-        elif panel_title == "Submission":
+            continue
+
+        # New merged "Submission" panel: Description / AI Declaration / Links are
+        # individual <dt>/<dd> rows alongside the meta fields.
+        if panel_title in ("Submission", "Project"):
             for dt, dd in zip(panel.select("dt"), panel.select("dd")):
-                key = text_of(dt).lower().replace(" ", "_")
-                submission_meta[key] = text_of(dd)
+                label = _link_label(text_of(dt))
+                if label == "description":
+                    description = text_of(dd)
+                elif label == "ai_declaration":
+                    raw = text_of(dd)
+                    ai_declaration = "" if not raw or "no ai declaration" in raw.lower() else raw
+                elif label == "links":
+                    # The Links <dd> holds multiple anchors (project page, demo,
+                    # repo, readme, open all). Keep the first href per label and
+                    # expose the project link under the ``project`` key.
+                    for a in dd.select("a"):
+                        a_label = _link_label(text_of(a))
+                        href = a.get("href")
+                        if not href:
+                            continue
+                        if a_label in ("open_all", "open-all"):
+                            continue
+                        if a_label in ("project_page", "project-page", "project"):
+                            links.setdefault("project", href)
+                        else:
+                            links[a_label] = href
+                else:
+                    submission_meta[label] = text_of(dd)
+
+    # Cross-platform link aliases the frontend expects.
+    if "project_page" in links and "project" not in links:
+        links["project"] = links["project_page"]
 
     # Claim / verdict form
     review_form = soup.select_one("form.review-form")
