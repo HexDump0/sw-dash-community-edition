@@ -394,21 +394,23 @@ def parse_review(html: str, cert_id: int) -> dict[str, Any]:
     if "project_page" in links and "project" not in links:
         links["project"] = links["project_page"]
 
-    # Claim / verdict form
+    # Verdict form. Since Stardance commit ff08aae8 ("allow any reviewer to
+    # submit a verdict without holding a claim") this ``form.review-form`` is
+    # rendered for *any* reviewer on a pending ship, so its presence no longer
+    # means the current user holds the claim. We still read it for the verdict
+    # action / CSRF / direct-upload URL.
     review_form = soup.select_one("form.review-form")
-    can_review = review_form is not None
     claim: dict[str, Any] = {
-        "heldByMe": can_review,
+        "heldByMe": False,
         "expiresAt": None,
         "action": "",
         "method": "",
         "authenticityToken": "",
         "directUploadUrl": "",
+        "unclaimAction": "",
+        "unclaimToken": "",
     }
     if review_form:
-        expiry = review_form.select_one("[data-expires-at]")
-        if expiry:
-            claim["expiresAt"] = expiry.get("data-expires-at")
         claim["action"] = review_form.get("action", "")
         claim["directUploadUrl"] = review_form.get(
             "data-certification--video-drop-direct-upload-url-value", ""
@@ -420,17 +422,34 @@ def parse_review(html: str, cert_id: int) -> dict[str, Any]:
             elif name == "_method":
                 claim["method"] = inp.get("value", "")
 
-    # Unclaim form
-    unclaim_form = soup.select_one('form[action$="/claim"][method="post"]')
-    unclaim_action: str | None = None
-    unclaim_token: str | None = None
-    if unclaim_form:
-        unclaim_action = unclaim_form.get("action")
-        for inp in unclaim_form.select("input[type='hidden']"):
-            if inp.get("name") == "authenticity_token":
-                unclaim_token = inp.get("value")
-    claim["unclaimAction"] = unclaim_action or ""
-    claim["unclaimToken"] = unclaim_token or ""
+    # Claim state. The Actions panel renders EITHER a visible "Unclaim review"
+    # button (when the current user holds the claim) OR a "Claim this review"
+    # button (when nobody holds it). The Unclaim button targets the hidden
+    # ``unclaim-form-<id>`` form via its ``form`` attribute, so that button —
+    # not the hidden form, which is always present — is the reliable "held by
+    # me" signal. Keying off the always-present hidden form is what made every
+    # review look pre-claimed (and the bogus unclaim then 403'd upstream).
+    unclaim_button = soup.select_one('button[form^="unclaim-form-"]')
+    claim["heldByMe"] = unclaim_button is not None
+
+    # The claim-expiry countdown only renders inside the verdict form's banner
+    # when the user holds the claim AND a claim_expires_at is set.
+    banner = soup.select_one(".review-form__claim-banner [data-expires-at]")
+    if banner:
+        claim["expiresAt"] = banner.get("data-expires-at")
+    elif unclaim_button:
+        countdown = soup.select_one("[data-expires-at]")
+        if countdown:
+            claim["expiresAt"] = countdown.get("data-expires-at")
+
+    if unclaim_button:
+        form_id = unclaim_button.get("form", "")
+        unclaim_form = soup.select_one(f"#{form_id}") if form_id else None
+        if unclaim_form:
+            claim["unclaimAction"] = unclaim_form.get("action", "")
+            for inp in unclaim_form.select("input[type='hidden']"):
+                if inp.get("name") == "authenticity_token":
+                    claim["unclaimToken"] = inp.get("value", "")
 
     submitter_history: dict[str, Any] | None = None
     hist_panel = soup.select_one(".submitter-history")

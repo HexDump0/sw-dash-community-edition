@@ -86,8 +86,8 @@
         gtag('config', 'AW-18182651878');
       </script>
     <script src="https://stardance.hackclub.com/assets/application-49c88548.js" data-turbo-track="reload" type="module"></script>
-    <meta name="sentry-trace" content="bf0339effa7f4ed99f49d432fe35a1f5-1b1edd7ad9a84e09-1">
-<meta name="baggage" content="sentry-trace_id=bf0339effa7f4ed99f49d432fe35a1f5,sentry-sample_rate=1.0,sentry-sample_rand=0.033781,sentry-sampled=true,sentry-environment=production,sentry-public_key=128c1f8988d2f77be887915507fa1e06,sentry-org_id=40609"> 
+    <meta name="sentry-trace" content="09707de1cb2142509feace27a6736db9-177a985cbf0645fc-1">
+<meta name="baggage" content="sentry-trace_id=09707de1cb2142509feace27a6736db9,sentry-sample_rate=1.0,sentry-sample_rand=0.785704,sentry-sampled=true,sentry-environment=production,sentry-public_key=128c1f8988d2f77be887915507fa1e06,sentry-org_id=40609"> 
   </head>
 
   <body class="signed-in app-layout-page admin-page ">
@@ -488,7 +488,7 @@
 
 <div class="app-layout app-layout--wide"
      data-controller="certification--queue"
-     data-certification--queue-server-now-value="2026-06-19T13:37:52Z">
+     data-certification--queue-server-now-value="2026-06-19T13:49:10Z">
   <div class="app-layout__main app-layout__main--wide ship-review">
     <a class="ship-review__back" href="/admin/certification/ship">← back to queue</a>
 
@@ -513,6 +513,8 @@
             <dd>nightowl</dd>
             <dt>Submitted</dt>
             <dd>10 days ago</dd>
+              <dt>Reviewer</dt>
+              <dd>Floppy</dd>
             <dt>Updated project</dt>
             <dd>
                 <span class="ship-review__badge ship-review__badge--no">No</span>
@@ -540,6 +542,12 @@
           <form id="unclaim-form-448" action="/admin/certification/ship/448/claim" accept-charset="UTF-8" method="post"><input type="hidden" name="_method" value="delete" autocomplete="off" /><input type="hidden" name="authenticity_token" value="REDACTED_AUTH_TOKEN" autocomplete="off" />
 </form>
 <form class="review-form" data-controller="certification--video-drop certification--feedback-templates" data-action="submit-&gt;certification--video-drop#guardSubmit" data-certification--video-drop-over-class="video-drop--over" data-certification--video-drop-uploading-class="video-drop--uploading" data-certification--video-drop-done-class="video-drop--done" data-certification--video-drop-error-class="video-drop--error" data-certification--video-drop-direct-upload-url-value="https://stardance.hackclub.com/rails/active_storage/direct_uploads" enctype="multipart/form-data" action="/admin/certification/ship/448" accept-charset="UTF-8" method="post"><input type="hidden" name="_method" value="patch" autocomplete="off" /><input type="hidden" name="authenticity_token" value="REDACTED_AUTH_TOKEN" autocomplete="off" />
+  <div class="review-form__claim-banner">
+    <span>Claim active</span>
+    <span class="review-form__countdown"
+          data-certification--queue-target="countdown"
+          data-expires-at="2026-06-19T14:19:09Z"></span>
+  </div>
 
   <fieldset class="review-form__fieldset">
     <legend>Verdict</legend>
@@ -631,7 +639,10 @@ Once you&#39;ve made these, ship it again and we&#39;ll take another look!">AI-g
           <div class="ship-review__panel">
             <h2 class="ship-review__panel-title">Actions</h2>
             <div class="ship-review__actions">
-                <form class="button_to" method="post" action="/admin/certification/ship/448/claim"><button class="action-btn action-btn--large action-btn--primary" type="submit">Claim this review</button><input type="hidden" name="authenticity_token" value="REDACTED_AUTH_TOKEN" autocomplete="off" /></form>
+                <button type="submit" form="unclaim-form-448"
+                        class="action-btn action-btn--large action-btn--destructive">
+                  Unclaim review
+                </button>
               <form action="/admin/certification/ship/448/set_project_type" accept-charset="UTF-8" method="post"><input type="hidden" name="_method" value="patch" autocomplete="off" /><input type="hidden" name="authenticity_token" value="REDACTED_AUTH_TOKEN" autocomplete="off" />
                 <select name="project_type" id="project_type" onchange="this.form.requestSubmit()" class="ship-queue__select"><option disabled="disabled" hidden="hidden" value="">Unknown</option>
 <option value="CLI">CLI</option>
@@ -666,12 +677,12 @@ Once you&#39;ve made these, ship it again and we&#39;ll take another look!">AI-g
         <p>
           Build <a href="https://github.com/hackclub/stardance/commit/HEAD">HEAD</a>
           from about 9 hours ago.
-          (DB: 21 queries, 0 cached)
+          (DB: 22 queries, 0 cached)
           (CACHE: 2 hits, 0 misses)
-          (0.1 req/sec)
-          (Active: 114 signed in, 144 visitors)
+          (3.3 req/sec)
+          (Active: 125 signed in, 175 visitors)
         </p>
       </footer>
-  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a0e2ee4d6a6be40f',t:'MTc4MTg3NjI3Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a0e2feda4fa66eb9',t:'MTc4MTg3Njk1MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
 

@@ -109,6 +109,29 @@ def test_review_claim_form():
     assert claim["method"], "claim form method missing"
 
 
+def test_review_unclaimed_is_not_held_by_me():
+    """An unclaimed ship must NOT report heldByMe, and must not surface an
+    unclaim action. Stardance always renders a hidden unclaim-form, so the
+    old selector made every review look pre-claimed (and the bogus unclaim
+    then 403'd upstream)."""
+    out = parsers.parse_review(_read("review.html"), 0)
+    claim = out["claim"]
+    assert claim["heldByMe"] is False, "unclaimed ship reported as heldByMe"
+    assert not claim["unclaimAction"], "unclaimed ship has an unclaim action"
+    assert not claim["unclaimToken"], "unclaimed ship has an unclaim token"
+
+
+def test_review_claimed_is_held_by_me():
+    """A ship claimed by the current reviewer must report heldByMe, a real
+    unclaim action+token, and an expiry timestamp."""
+    out = parsers.parse_review(_read("review_claimed.html"), 0)
+    claim = out["claim"]
+    assert claim["heldByMe"] is True, "claimed ship not reported as heldByMe"
+    assert claim["unclaimAction"].endswith("/claim"), claim["unclaimAction"]
+    assert claim["unclaimToken"], "no unclaim authenticity token"
+    assert claim["expiresAt"], "claim expiry missing"
+
+
 def test_review_submission_meta():
     out = parsers.parse_review(_read("review.html"), 0)
     meta = out["submissionMeta"]
